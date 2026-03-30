@@ -1,6 +1,7 @@
 import express, { urlencoded } from "express";
 import cors from "cors";
 import healthCheckRouter from "./routes/healthCheck.route.js";
+import authRouter from './routes/auth.route.js'
 
 const app = express();
 
@@ -16,6 +17,7 @@ app.use(cors({
 }))
 
 app.use("/api/v1/healthcheck" , healthCheckRouter)
+app.use("/api/v1/auth",authRouter)
 
 app.get("/", (req, res) => {
     res.send("Hello world");

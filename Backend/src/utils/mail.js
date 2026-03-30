@@ -23,7 +23,7 @@ const sendEmail = async (options) => {
     });
 
     const mail = {
-        from: "arslan786950@gmail.com",
+        from: "teamMarketPulse@example.com",
         to: options.email,
         subject: options.subject,
         text: emailTextual,
@@ -43,7 +43,7 @@ const emailVerificationMail = (username, verificationUrl) => {
     return {
         body: {
             name: username,
-            intro: "Welcome to MarketPulse ! excited to have you on board ",
+            intro: "Welcome to MarketPulse ! Excited to have you on board ",
             action: {
                 instructions: "To verify yourself as user please click the following button",
                 button: {
@@ -52,7 +52,7 @@ const emailVerificationMail = (username, verificationUrl) => {
                     link: verificationUrl
                 },
             },
-            outro: "If need help reply back to this email"
+            outro: "If you need help, pleasereply back to this email"
         }
     }
 }
@@ -63,14 +63,14 @@ const resetPasswordMail = (username, resetPasswordUrl) => {
             name: username,
             intro: "We received the request to change the password",
             action: {
-                instructions: "To Change your current password please click the following button",
+                instructions: "To change your current password please click the following button",
                 button: {
                     color: "#10b981",
                     text: "Reset",
                     link: resetPasswordUrl
                 },
             },
-            outro: "If the request is not initiated by you Kindly ignore the mail"
+            outro: "If the request is not initiated by you, kindly ignore the mail"
         }
     }
 }
