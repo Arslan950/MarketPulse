@@ -2,7 +2,7 @@ import { User } from "../models/user.models.js"
 import { ApiResponse } from "../utils/api-response.js"
 import { ApiError } from "../utils/api-error.js"
 import { asyncHandler } from "../utils/async-handler.js"
-import { sendEmail, emailVerificationMail } from "../utils/mail.js"
+import { sendEmail, emailVerificationMail, resetPasswordMail } from "../utils/mail.js"
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
@@ -54,7 +54,7 @@ const registerUser = asyncHandler(async (req, res) => {
             subject: "Please verify yourself a valid user!",
             mailgenContent: emailVerificationMail(
                 user?.fullName,
-                `${req.protocol}://${req.get("host")}/api/v1/auth/verify-email/${unHashedToken}`
+                `http://localhost:5173/verify-email/${unHashedToken}`
             ),
         }
     );
@@ -277,12 +277,12 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
 
         return res
             .status(200)
-            .clearCookie("accessToken",accessToken, options)
-            .clearCookie("refreshToken",newRefreshToken,options)
+            .clearCookie("accessToken", accessToken, options)
+            .clearCookie("refreshToken", newRefreshToken, options)
             .json(
-                new ApiResponse(200,{
+                new ApiResponse(200, {
                     accessToken, refreshToken: newRefreshToken
-                },"Access Token refreshed")
+                }, "Access Token refreshed")
             )
 
     } catch (error) {
@@ -290,4 +290,84 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
     }
 })
 
-export { registerUser, login, logout, getUserInfo, verifyEmail, getEmailVerificationStatus, resendEmailverification , refreshAccessToken };
+const forgotPassword = asyncHandler(async (req, res) => {
+    const { email } = req.body;
+
+    const user = await User.findOne({ email });
+
+    if (!user) {
+        throw new ApiError(439, "Email entered do not exist");
+    }
+
+    const { unHashedToken, hashedToken, tokenExpiry } = user.generateTemporaryToken();
+
+    user.resetPasswordToken = hashedToken;
+    user.resetPasswordExpires = tokenExpiry;
+
+    await user.save({ validateBeforeSave: false });
+
+    await sendEmail(
+        {
+            email: user?.email,
+            subject: "Click below to change your password",
+            mailgenContent: resetPasswordMail(
+                user?.fullName,
+                `http://localhost:5173/reset-password/${unHashedToken}`
+            ),
+        }
+    );
+
+    return res
+        .status(201)
+        .json(
+            new ApiResponse(201, {}, "reset password mail has been sent to you mail ID")
+        )
+
+});
+
+const resetForgotPassword = asyncHandler(async (req, res) => {
+    const { resetPasswordToken } = req.params;
+    const { newPassword } = req.body;
+
+    if (!resetPasswordToken) {
+        throw new ApiError(450, "Token not found")
+    };
+
+    let hashedToken = crypto.createHash("sha256").update(resetPasswordToken).digest("hex");
+
+    const user = await User.findOne({
+        resetPasswordToken: hashedToken,
+        resetPasswordExpires: { $gt: Date.now() }
+    })
+
+    if (!user) {
+        throw new ApiError(449, "Either the token is inavlid or expired")
+    }
+
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+
+    user.password = newPassword;
+
+    await user.save({ validateBeforeSave: false });
+
+    return res
+        .status(201)
+        .json(
+            new ApiResponse(201, "your password is sucessfully changed")
+        )
+
+});
+
+export {
+    registerUser,
+    login,
+    logout,
+    getUserInfo,
+    verifyEmail,
+    getEmailVerificationStatus,
+    resendEmailverification,
+    refreshAccessToken,
+    forgotPassword,
+    resetForgotPassword
+};

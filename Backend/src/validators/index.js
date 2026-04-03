@@ -52,7 +52,34 @@ const userLoginValidator = () => {
     ]
 };
 
+const userForgotPasswordValidator = () => {
+    return [
+        body("email")
+            .trim()
+            .notEmpty()
+            .withMessage("Email is required")
+            .isEmail()
+            .withMessage("Please provide a valid email address")
+            .normalizeEmail(),
+    ]
+};
+
+const userResetForgotPasswordValidator = () => {
+    return [
+        body("newPassword")
+            .trim()
+            .notEmpty()
+            .withMessage("New password is required")
+            .isLength({ min: 8 })
+            .withMessage("New password must be at least 8 characters long"),
+    ]
+};
+
+
+
 export {
     userRegistrationValidator,
-    userLoginValidator
+    userLoginValidator,
+    userForgotPasswordValidator,
+    userResetForgotPasswordValidator
 }

@@ -6,7 +6,7 @@ const sendEmail = async (options) => {
         theme: "default",
         product: {
             name: "MarketPulse",
-            link: "https://MarketPulse.com"
+            link: "https://localhost:5173"
         }
     })
 
@@ -52,7 +52,7 @@ const emailVerificationMail = (username, verificationUrl) => {
                     link: verificationUrl
                 },
             },
-            outro: "If you need help, pleasereply back to this email"
+            outro: "If you need help, please reply back to this email"
         }
     }
 }

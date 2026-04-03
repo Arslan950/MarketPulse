@@ -1,34 +1,38 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Button } from '../components/Button';
 import { AuthField } from '../components/AuthField';
 import { AuthLayout } from '../components/AuthLayout';
 
-export function ForgotPassword() {
-  const [email, setEmail] = useState('');
+export function ResetPassword() {
+  const { token } = useParams(); 
+  const navigate = useNavigate();
+  
+  const [newPassword, setNewPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    
     setError('');
     setMessage('');
     setIsLoading(true);
 
     try {
-     
-      const response = await axios.post('http://localhost:3000/api/v1/auth/forgot-password', { 
-        email 
+      const response = await axios.post(`http://localhost:3000/api/v1/auth/reset-password/${token}`, { 
+        newPassword 
       });
 
-      setMessage(response.data.message || 'If an account exists with that email, a reset link has been sent.');
-      setEmail(''); 
+      setMessage(response.data.message || 'Password successfully changed! Redirecting to login...');
       
+      setTimeout(() => {
+        navigate('/login');
+      }, 1500);
+
     } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Something went wrong. Please try again.');
+      setError(err.response?.data?.message || err.message || 'Failed to reset password');
     } finally {
       setIsLoading(false);
     }
@@ -36,37 +40,30 @@ export function ForgotPassword() {
 
   return (
     <AuthLayout
-      title="Reset your password"
-      subtitle="Enter the email tied to your account and we’ll send password reset instructions."
-      footer={
-        <p className="text-sm text-center text-muted-foreground">
-          Remembered it?{' '}
-          <Link to="/login" className="font-semibold text-emerald-500 hover:text-emerald-400">
-            Back to login
-          </Link>
-        </p>
-      }
+      title="Create new password"
+      subtitle="Please enter your new password below."
     >
       <form className="space-y-5" onSubmit={handleSubmit}>
-        
         {error && <div className="p-3 text-sm text-red-500 rounded-lg bg-red-50">{error}</div>}
         {message && <div className="p-3 text-sm rounded-lg text-emerald-600 bg-emerald-50">{message}</div>}
 
         <AuthField 
-          label="Email" 
-          type="email" 
-          placeholder="you@company.com" 
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          label="New Password" 
+          type="password" 
+          allowPasswordToggle
+          placeholder="••••••••" 
+          value={newPassword}
+          onChange={(e) => setNewPassword(e.target.value)}
           required
         />
+
         <Button
           type="submit"
           size="lg"
           disabled={isLoading}
           className="w-full h-12 text-base font-semibold text-white rounded-2xl bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50"
         >
-          {isLoading ? 'Sending...' : 'Reset Password'}
+          {isLoading ? 'Saving...' : 'Save Password'}
         </Button>
       </form>
     </AuthLayout>

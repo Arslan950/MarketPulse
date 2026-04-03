@@ -92,6 +92,7 @@ export function Login() {
           type="password"
           name="password"
           placeholder="Enter your password"
+          allowPasswordToggle
           value={formData.password}
           onChange={handleChange}
           required

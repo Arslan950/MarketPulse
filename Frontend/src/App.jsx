@@ -11,45 +11,49 @@ import { Profile } from './pages/Profile';
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
 import { ForgotPassword } from './pages/ForgotPassword';
+import { ResetPassword } from './pages/ResetPassword';
+import EmailVerification from './pages/EmailVerification'
 
 function AppLayout() {
-    const { collapsed } = useSidebar();
-    return <div className="min-h-screen bg-background font-sans transition-colors duration-300">
-      <Navbar />
-      <Sidebar />
+  const { collapsed } = useSidebar();
+  return <div className="min-h-screen font-sans transition-colors duration-300 bg-background">
+    <Navbar />
+    <Sidebar />
 
-      <main className="pt-16 min-h-screen transition-all duration-300 ease-in-out" style={{
-            marginLeft: collapsed ? 68 : 240
-        }}>
-        <div className="p-8">
-          <Routes>
-            <Route path="/trend-command" element={<TrendCommand />}/>
-            <Route path="/stock-intelligence" element={<StockIntelligence />}/>
-            <Route path="/business-copilot" element={<BusinessCopilot />}/>
-            <Route path="/profile" element={<Profile />}/>
-            <Route path="*" element={<Navigate to="/login" replace/>}/>
-          </Routes>
-        </div>
-      </main>
-    </div>;
+    <main className="min-h-screen pt-16 transition-all duration-300 ease-in-out" style={{
+      marginLeft: collapsed ? 68 : 240
+    }}>
+      <div className="p-8">
+        <Routes>
+          <Route path="/trend-command" element={<TrendCommand />} />
+          <Route path="/stock-intelligence" element={<StockIntelligence />} />
+          <Route path="/business-copilot" element={<BusinessCopilot />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="*" element={<Navigate to="/login" replace />} />
+        </Routes>
+      </div>
+    </main>
+  </div>;
 }
 
 function AppRouter() {
-    return <Routes>
-      <Route path="/" element={<Navigate to="/login" replace/>}/>
-      <Route path="/login" element={<Login />}/>
-      <Route path="/register" element={<Register />}/>
-      <Route path="/forgotPassword" element={<ForgotPassword />}/>
-      <Route path="/*" element={<AppLayout />}/>
-    </Routes>;
+  return <Routes>
+    <Route path="/" element={<Navigate to="/login" replace />} />
+    <Route path="/login" element={<Login />} />
+    <Route path="/register" element={<Register />} />
+    <Route path="/forgotPassword" element={<ForgotPassword />} />
+    <Route path="/reset-password/:token" element={<ResetPassword />} />
+    <Route path="/verify-email/:emailVerificationToken" element = {<EmailVerification />} />
+    <Route path="/*" element={<AppLayout />} />
+  </Routes>;
 }
 
 export function App() {
-    return <ThemeProvider>
-      <SidebarProvider>
-        <BrowserRouter>
-          <AppRouter />
-        </BrowserRouter>
-      </SidebarProvider>
-    </ThemeProvider>;
+  return <ThemeProvider>
+    <SidebarProvider>
+      <BrowserRouter>
+        <AppRouter />
+      </BrowserRouter>
+    </SidebarProvider>
+  </ThemeProvider>;
 }
