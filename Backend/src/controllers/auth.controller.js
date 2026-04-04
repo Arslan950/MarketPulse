@@ -99,7 +99,7 @@ const login = asyncHandler(async (req, res) => {
 
     const options = {
         httpOnly: true,
-        secure: true,
+        secure: false,
     };
 
     return res
@@ -121,12 +121,12 @@ const logout = asyncHandler(async (req, res) => {
             }
         },
         {
-            new: true,
+            returnDocument : "after"
         }
     );
     const options = {
         httpOnly: true,
-        secure: true,
+        secure: false,
     };
     return res
         .status(200)
