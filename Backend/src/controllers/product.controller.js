@@ -120,6 +120,11 @@ const updateProductInfo = asyncHandler(async (req, res) => {
         throw new ApiError(404, "Product not found or you do not have permission to edit it");
     }
 
+    updatedProduct.profitPercentage = updatedProduct.calculateProfit();
+    updatedProduct.totalValue = updatedProduct.calculateTotalValue();
+    
+    await updatedProduct.save({ validateBeforeSave: false });
+
     return res
         .status(200)
         .json(
