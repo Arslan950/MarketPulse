@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Bell, Sun, Moon } from 'lucide-react';
+import { Search, Bell, Sun, Moon, LogOutIcon } from 'lucide-react';
 import { Avatar } from './Avatar';
 import { useTheme } from './ThemeContext';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -102,7 +102,8 @@ export function Navbar() {
           <Bell className="w-5 h-5 text-muted-foreground"/>
           <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-background"/>
         </button>
-        <button onClick={handleLogout} disabled={isLoggingOut} className='bg-[#10b981] px-2 py-1 rounded-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed'>
+        <button title = "Logout" onClick={handleLogout} disabled={isLoggingOut} className='flex items-center gap-x-1 bg-[#10b981] px-2 py-1 rounded-sm disabled:opacity-50 disabled:cursor-not-allowed'>
+          <LogOutIcon size={19}/>
           {isLoggingOut ? 'Logging out...' : 'Logout'}
         </button>
       </div>
