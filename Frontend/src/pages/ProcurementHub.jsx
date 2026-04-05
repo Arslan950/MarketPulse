@@ -1,6 +1,15 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import axios from 'axios';
 import { motion } from 'framer-motion';
-import { Search, ShoppingCart, Package, Truck, CheckCircle2 } from 'lucide-react';
+import {
+  Search,
+  ShoppingCart,
+  Package,
+  Truck,
+  CheckCircle2,
+  Plus,
+  Loader2,
+} from 'lucide-react';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import {
@@ -11,86 +20,161 @@ import {
   SelectItem,
 } from '../components/Select';
 
-const initialProducts = [
-  {
-    id: 1,
-    name: 'Industrial Copper Wire',
-    category: 'Raw Materials',
-    price: 480,
-    stock: 120,
-    supplier: 'Metro Metals',
-  },
-  {
-    id: 2,
-    name: 'Smart Sensor Module',
-    category: 'Electronics',
-    price: 1250,
-    stock: 42,
-    supplier: 'Nova Circuits',
-  },
-  {
-    id: 3,
-    name: 'Packaging Carton Set',
-    category: 'Packaging',
-    price: 95,
-    stock: 300,
-    supplier: 'WrapWorks Supply',
-  },
-  {
-    id: 4,
-    name: 'Safety Gloves Pack',
-    category: 'Operations',
-    price: 220,
-    stock: 86,
-    supplier: 'ShieldPro Industries',
-  },
-  {
-    id: 5,
-    name: 'LED Display Panel',
-    category: 'Electronics',
-    price: 3400,
-    stock: 18,
-    supplier: 'BrightEdge Tech',
-  },
-  {
-    id: 6,
-    name: 'Warehouse Storage Bin',
-    category: 'Operations',
-    price: 760,
-    stock: 55,
-    supplier: 'StackFlow Systems',
-  },
-];
+const CATALOG_API_URL = 'http://localhost:3000/api/v1/catalog';
+const ACCESS_TOKEN_STORAGE_KEY = 'marketpulse-access-token';
 
-const categories = ['All Categories', 'Electronics', 'Operations', 'Packaging', 'Raw Materials'];
+const EMPTY_LISTING_FORM = {
+  itemName: '',
+  category: '',
+  unitsAvailable: '',
+  supplierName: '',
+  wholesalePrice: '',
+};
 
 const formatCurrency = (value) =>
   new Intl.NumberFormat('en-IN', {
     style: 'currency',
     currency: 'INR',
-    maximumFractionDigits: 0,
-  }).format(value);
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(Number(value || 0));
+
+const getRequestConfig = () => {
+  const accessToken = window.localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY);
+
+  return {
+    withCredentials: true,
+    headers: accessToken
+      ? {
+          Authorization: `Bearer ${accessToken}`,
+        }
+      : {},
+  };
+};
+
+const normalizeCatalogItem = (item) => ({
+  id: item?._id ?? '',
+  name: item?.itemName ?? 'Untitled Item',
+  category: item?.category ?? 'Uncategorized',
+  price: Number(item?.wholesalePrice ?? 0),
+  stock: Number(item?.unitsAvailable ?? 0),
+  supplier: item?.supplierName ?? 'Unknown Supplier',
+});
 
 export function ProcurementHub() {
-  const [products, setProducts] = useState(initialProducts);
+  const [products, setProducts] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All Categories');
   const [activeQuery, setActiveQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('All Categories');
   const [selectedProduct, setSelectedProduct] = useState(null);
-  const [quantity, setQuantity] = useState(1);
+  const [quantity, setQuantity] = useState('1');
   const [recentPurchases, setRecentPurchases] = useState([]);
-  const [successMessage, setSuccessMessage] = useState('');
+  const [pageMessage, setPageMessage] = useState(null);
+  const [loadError, setLoadError] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isPurchasing, setIsPurchasing] = useState(false);
+  const [listingForm, setListingForm] = useState(EMPTY_LISTING_FORM);
+  const [listingError, setListingError] = useState('');
+  const [isAddingItem, setIsAddingItem] = useState(false);
 
-  const filteredProducts = products.filter((product) => {
-    const matchesQuery = product.name.toLowerCase().includes(activeQuery.trim().toLowerCase());
-    const matchesCategory =
-      activeCategory === 'All Categories' || product.category === activeCategory;
+  const fetchCatalog = async ({ silent = false } = {}) => {
+    if (!silent) {
+      setIsLoading(true);
+    }
 
-    return matchesQuery && matchesCategory;
-  });
+    setLoadError('');
 
-  const totalPrice = selectedProduct ? selectedProduct.price * quantity : 0;
+    try {
+      const response = await axios.get(`${CATALOG_API_URL}/get-catalog`, getRequestConfig());
+      const items = response?.data?.data?.items ?? [];
+      const normalizedProducts = items.map(normalizeCatalogItem);
+
+      setProducts(normalizedProducts);
+      setSelectedProduct((currentProduct) => {
+        if (!currentProduct) {
+          return currentProduct;
+        }
+
+        return normalizedProducts.find((product) => product.id === currentProduct.id) ?? null;
+      });
+    } catch (error) {
+      setLoadError(error?.response?.data?.message || 'Unable to load the procurement catalog.');
+    } finally {
+      if (!silent) {
+        setIsLoading(false);
+      }
+    }
+  };
+
+  useEffect(() => {
+    fetchCatalog();
+  }, []);
+
+  useEffect(() => {
+    if (!pageMessage) {
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setPageMessage(null);
+    }, 4000);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [pageMessage]);
+
+  const categories = useMemo(() => {
+    const uniqueCategories = Array.from(new Set(products.map((product) => product.category).filter(Boolean)));
+    return ['All Categories', ...uniqueCategories.sort((left, right) => left.localeCompare(right))];
+  }, [products]);
+
+  useEffect(() => {
+    if (selectedCategory !== 'All Categories' && !categories.includes(selectedCategory)) {
+      setSelectedCategory('All Categories');
+    }
+
+    if (activeCategory !== 'All Categories' && !categories.includes(activeCategory)) {
+      setActiveCategory('All Categories');
+    }
+  }, [activeCategory, categories, selectedCategory]);
+
+  const filteredProducts = useMemo(
+    () =>
+      products.filter((product) => {
+        const matchesQuery = product.name.toLowerCase().includes(activeQuery.trim().toLowerCase());
+        const matchesCategory =
+          activeCategory === 'All Categories' || product.category === activeCategory;
+
+        return matchesQuery && matchesCategory;
+      }),
+    [activeCategory, activeQuery, products]
+  );
+
+  const parsedQuantity = Number(quantity);
+  const totalPrice =
+    selectedProduct && Number.isFinite(parsedQuantity) && parsedQuantity > 0
+      ? selectedProduct.price * parsedQuantity
+      : 0;
+
+  const quantityError = useMemo(() => {
+    if (!selectedProduct) {
+      return '';
+    }
+
+    if (quantity === '') {
+      return 'Enter a purchase quantity.';
+    }
+
+    if (!Number.isInteger(parsedQuantity) || parsedQuantity <= 0) {
+      return 'Enter a valid purchase quantity.';
+    }
+
+    if (parsedQuantity > selectedProduct.stock) {
+      return `Requested quantity exceeds available stock (${selectedProduct.stock} units left).`;
+    }
+
+    return '';
+  }, [parsedQuantity, quantity, selectedProduct]);
 
   const handleSearch = () => {
     setActiveQuery(searchQuery);
@@ -99,55 +183,131 @@ export function ProcurementHub() {
 
   const handleSelectProduct = (product) => {
     setSelectedProduct(product);
-    setQuantity(1);
-    setSuccessMessage('');
+    setQuantity('1');
+    setPageMessage(null);
   };
 
-  const handleConfirmPurchase = () => {
-    if (!selectedProduct) {
+  const handleConfirmPurchase = async () => {
+    if (!selectedProduct || quantityError) {
       return;
     }
 
-    const parsedQuantity = Number(quantity);
+    setIsPurchasing(true);
+    setPageMessage(null);
 
-    if (!Number.isInteger(parsedQuantity) || parsedQuantity <= 0) {
-      return;
+    try {
+      const response = await axios.post(
+        `${CATALOG_API_URL}/buy/${selectedProduct.id}`,
+        { quantity: parsedQuantity },
+        getRequestConfig()
+      );
+
+      const remainingStock = Number(
+        response?.data?.data?.wholesalerRemainingStock ?? selectedProduct.stock - parsedQuantity
+      );
+      const purchasedProductName =
+        response?.data?.data?.buyerInventory?.productName ?? selectedProduct.name;
+      const successText =
+        response?.data?.message || `Purchase confirmed for ${purchasedProductName}.`;
+
+      setProducts((currentProducts) =>
+        currentProducts.map((product) =>
+          product.id === selectedProduct.id ? { ...product, stock: remainingStock } : product
+        )
+      );
+      setSelectedProduct((currentProduct) =>
+        currentProduct?.id === selectedProduct.id
+          ? { ...currentProduct, stock: remainingStock }
+          : currentProduct
+      );
+      setRecentPurchases((currentPurchases) =>
+        [
+          {
+            id: `${selectedProduct.id}-${Date.now()}`,
+            productName: purchasedProductName,
+            supplier: selectedProduct.supplier,
+            quantity: parsedQuantity,
+            total: selectedProduct.price * parsedQuantity,
+          },
+          ...currentPurchases,
+        ].slice(0, 6)
+      );
+      setQuantity('1');
+      setPageMessage({
+        type: 'success',
+        text: successText,
+      });
+    } catch (error) {
+      setPageMessage({
+        type: 'error',
+        text: error?.response?.data?.message || 'Unable to complete the purchase right now.',
+      });
+    } finally {
+      setIsPurchasing(false);
     }
+  };
 
-    if (parsedQuantity > selectedProduct.stock) {
-      return;
-    }
+  const handleListingFieldChange = (event) => {
+    const { name, value } = event.target;
 
-    const purchaseRecord = {
-      id: Date.now(),
-      productName: selectedProduct.name,
-      supplier: selectedProduct.supplier,
-      quantity: parsedQuantity,
-      total: selectedProduct.price * parsedQuantity,
+    setListingForm((currentForm) => ({
+      ...currentForm,
+      [name]: value,
+    }));
+  };
+
+  const handleAddItem = async (event) => {
+    event.preventDefault();
+    setListingError('');
+    setPageMessage(null);
+
+    const payload = {
+      itemName: listingForm.itemName.trim(),
+      category: listingForm.category.trim(),
+      unitsAvailable: Number(listingForm.unitsAvailable),
+      supplierName: listingForm.supplierName.trim(),
+      wholesalePrice: Number(listingForm.wholesalePrice),
     };
 
-    setProducts((currentProducts) =>
-      currentProducts.map((product) =>
-        product.id === selectedProduct.id
-          ? { ...product, stock: product.stock - parsedQuantity }
-          : product
-      )
-    );
+    if (!payload.itemName || !payload.category || !payload.supplierName) {
+      setListingError('Please fill in item name, category, and supplier name.');
+      return;
+    }
 
-    setRecentPurchases((currentPurchases) => [purchaseRecord, ...currentPurchases].slice(0, 6));
-    setSelectedProduct((currentProduct) =>
-      currentProduct ? { ...currentProduct, stock: currentProduct.stock - parsedQuantity } : currentProduct
-    );
-    setQuantity(1);
-    setSuccessMessage(`Purchase confirmed for ${purchaseRecord.productName}.`);
+    if (Number.isNaN(payload.unitsAvailable) || Number.isNaN(payload.wholesalePrice)) {
+      setListingError('Please enter valid numeric values for units available and wholesale price.');
+      return;
+    }
+
+    if (!Number.isInteger(payload.unitsAvailable) || payload.unitsAvailable <= 0) {
+      setListingError('Units available must be a whole number greater than zero.');
+      return;
+    }
+
+    if (payload.wholesalePrice < 0) {
+      setListingError('Wholesale price cannot be negative.');
+      return;
+    }
+
+    setIsAddingItem(true);
+
+    try {
+      const response = await axios.post(`${CATALOG_API_URL}/add-item`, payload, getRequestConfig());
+
+      setListingForm(EMPTY_LISTING_FORM);
+      setPageMessage({
+        type: 'success',
+        text: `${response?.data?.message || 'Catalog item added successfully.'} Your own listings are excluded from the current browse endpoint, so they may not appear in this catalog view.`,
+      });
+      await fetchCatalog({ silent: true });
+    } catch (error) {
+      setListingError(error?.response?.data?.message || 'Unable to add this item to the catalog.');
+    } finally {
+      setIsAddingItem(false);
+    }
   };
 
-  const quantityError =
-    selectedProduct && Number(quantity) > selectedProduct.stock
-      ? 'Requested quantity exceeds available stock.'
-      : Number(quantity) <= 0 || !Number.isInteger(Number(quantity))
-      ? 'Enter a valid purchase quantity.'
-      : '';
+  const supplierCount = new Set(products.map((product) => product.supplier)).size;
 
   return (
     <div className="space-y-6">
@@ -163,15 +323,15 @@ export function ProcurementHub() {
           </p>
           <h1 className="mt-2 text-3xl font-bold text-foreground">Procurement Hub</h1>
           <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-            Review supplier stock, simulate purchases, and track recent orders before wiring this
-            flow to live backend procurement APIs.
+            Browse supplier stock, place live catalog purchases, and add your own items through the
+            backend procurement APIs.
           </p>
         </div>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <div className="rounded-2xl border border-border bg-card px-4 py-3">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Products
+              Catalog Items
             </p>
             <p className="mt-1 text-2xl font-semibold text-foreground">{products.length}</p>
           </div>
@@ -179,27 +339,39 @@ export function ProcurementHub() {
             <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
               Suppliers
             </p>
-            <p className="mt-1 text-2xl font-semibold text-foreground">
-              {new Set(products.map((product) => product.supplier)).size}
-            </p>
+            <p className="mt-1 text-2xl font-semibold text-foreground">{supplierCount}</p>
           </div>
           <div className="rounded-2xl border border-border bg-card px-4 py-3">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Recent Buys
+              Session Buys
             </p>
             <p className="mt-1 text-2xl font-semibold text-foreground">{recentPurchases.length}</p>
           </div>
         </div>
       </motion.div>
 
-      {successMessage ? (
+      {pageMessage ? (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex items-center gap-3 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-400"
+          className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm ${
+            pageMessage.type === 'success'
+              ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400'
+              : 'border-red-500/20 bg-red-500/10 text-red-400'
+          }`}
         >
           <CheckCircle2 className="h-4 w-4" />
-          <span>{successMessage}</span>
+          <span>{pageMessage.text}</span>
+        </motion.div>
+      ) : null}
+
+      {loadError ? (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400"
+        >
+          {loadError}
         </motion.div>
       ) : null}
 
@@ -218,7 +390,7 @@ export function ProcurementHub() {
               <div>
                 <h2 className="text-lg font-semibold text-foreground">Search & Filter</h2>
                 <p className="text-sm text-muted-foreground">
-                  Narrow the product list by name and category.
+                  Narrow the live catalog by name and category.
                 </p>
               </div>
             </div>
@@ -256,6 +428,7 @@ export function ProcurementHub() {
 
               <div className="flex items-end">
                 <Button
+                  type="button"
                   onClick={handleSearch}
                   className="h-11 w-full rounded-xl bg-emerald-500 px-5 text-white hover:bg-emerald-600"
                 >
@@ -275,7 +448,7 @@ export function ProcurementHub() {
               <div>
                 <h2 className="text-lg font-semibold text-foreground">Product List</h2>
                 <p className="text-sm text-muted-foreground">
-                  Dummy catalog ready for backend integration later.
+                  Live catalog data fetched from the backend.
                 </p>
               </div>
               <span className="rounded-full border border-border bg-background px-3 py-1 text-xs font-medium text-muted-foreground">
@@ -284,59 +457,69 @@ export function ProcurementHub() {
             </div>
 
             <div className="mt-6 space-y-4">
-              {filteredProducts.length > 0 ? (
-                filteredProducts.map((product) => (
-                  <div
-                    key={product.id}
-                    className="grid gap-4 rounded-2xl border border-border bg-background/60 p-4 lg:grid-cols-[1.2fr,0.8fr,0.7fr,1fr,auto] lg:items-center"
-                  >
-                    <div>
-                      <p className="text-sm font-semibold text-foreground">{product.name}</p>
-                      <p className="mt-1 text-xs uppercase tracking-wider text-muted-foreground">
-                        {product.category}
-                      </p>
-                    </div>
+              {isLoading ? (
+                <div className="rounded-2xl border border-dashed border-border bg-background/40 px-6 py-12 text-center">
+                  <Loader2 className="mx-auto h-10 w-10 animate-spin text-emerald-400" />
+                  <p className="mt-4 text-sm text-muted-foreground">Loading procurement catalog...</p>
+                </div>
+              ) : null}
 
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                        Current Price
-                      </p>
-                      <p className="mt-1 text-sm font-medium text-foreground">
-                        {formatCurrency(product.price)}
-                      </p>
-                    </div>
-
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                        Stock
-                      </p>
-                      <p className="mt-1 text-sm font-medium text-foreground">{product.stock} units</p>
-                    </div>
-
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                        Supplier
-                      </p>
-                      <p className="mt-1 text-sm font-medium text-foreground">{product.supplier}</p>
-                    </div>
-
-                    <Button
-                      onClick={() => handleSelectProduct(product)}
-                      disabled={product.stock === 0}
-                      className="h-10 rounded-xl bg-emerald-500 px-4 text-white hover:bg-emerald-600"
+              {!isLoading && filteredProducts.length > 0
+                ? filteredProducts.map((product) => (
+                    <div
+                      key={product.id}
+                      className="grid gap-4 rounded-2xl border border-border bg-background/60 p-4 lg:grid-cols-[1.2fr,0.8fr,0.7fr,1fr,auto] lg:items-center"
                     >
-                      Buy
-                    </Button>
-                  </div>
-                ))
-              ) : (
+                      <div>
+                        <p className="text-sm font-semibold text-foreground">{product.name}</p>
+                        <p className="mt-1 text-xs uppercase tracking-wider text-muted-foreground">
+                          {product.category}
+                        </p>
+                      </div>
+
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                          Wholesale Price
+                        </p>
+                        <p className="mt-1 text-sm font-medium text-foreground">
+                          {formatCurrency(product.price)}
+                        </p>
+                      </div>
+
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                          Stock
+                        </p>
+                        <p className="mt-1 text-sm font-medium text-foreground">{product.stock} units</p>
+                      </div>
+
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                          Supplier
+                        </p>
+                        <p className="mt-1 text-sm font-medium text-foreground">{product.supplier}</p>
+                      </div>
+
+                      <Button
+                        type="button"
+                        onClick={() => handleSelectProduct(product)}
+                        disabled={product.stock === 0}
+                        className="h-10 rounded-xl bg-emerald-500 px-4 text-white hover:bg-emerald-600"
+                      >
+                        {product.stock === 0 ? 'Sold Out' : 'Buy'}
+                      </Button>
+                    </div>
+                  ))
+                : null}
+
+              {!isLoading && filteredProducts.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-border bg-background/40 px-6 py-12 text-center">
                   <Package className="mx-auto h-10 w-10 text-muted-foreground/70" />
                   <p className="mt-4 text-sm text-muted-foreground">
                     No products match the current search filters.
                   </p>
                 </div>
-              )}
+              ) : null}
             </div>
           </motion.section>
         </div>
@@ -355,7 +538,7 @@ export function ProcurementHub() {
               <div>
                 <h2 className="text-lg font-semibold text-foreground">Purchase Panel</h2>
                 <p className="text-sm text-muted-foreground">
-                  Select a product and simulate a purchase.
+                  Select a product and submit the real buy request.
                 </p>
               </div>
             </div>
@@ -401,9 +584,10 @@ export function ProcurementHub() {
                   <Input
                     type="number"
                     min="1"
+                    max={String(selectedProduct.stock)}
                     step="1"
                     value={quantity}
-                    onChange={(event) => setQuantity(event.target.value === '' ? '' : Number(event.target.value))}
+                    onChange={(event) => setQuantity(event.target.value)}
                     className="h-11 rounded-xl border-border bg-background"
                   />
                 </div>
@@ -413,7 +597,7 @@ export function ProcurementHub() {
                     Total Price
                   </p>
                   <p className="mt-2 text-2xl font-semibold text-foreground">
-                    {formatCurrency(totalPrice || 0)}
+                    {formatCurrency(totalPrice)}
                   </p>
                 </div>
 
@@ -424,18 +608,20 @@ export function ProcurementHub() {
                 ) : null}
 
                 <Button
+                  type="button"
                   onClick={handleConfirmPurchase}
-                  disabled={!selectedProduct.stock || Boolean(quantityError)}
+                  disabled={isPurchasing || !selectedProduct.stock || Boolean(quantityError)}
                   className="h-11 w-full rounded-xl bg-emerald-500 text-white hover:bg-emerald-600"
                 >
-                  Confirm Purchase
+                  {isPurchasing ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  {isPurchasing ? 'Confirming...' : 'Confirm Purchase'}
                 </Button>
               </div>
             ) : (
               <div className="mt-6 rounded-2xl border border-dashed border-border bg-background/40 px-6 py-12 text-center">
                 <Truck className="mx-auto h-10 w-10 text-muted-foreground/70" />
                 <p className="mt-4 text-sm text-muted-foreground">
-                  Choose a product from the list to start a purchase simulation.
+                  Choose a product from the list to start a real catalog purchase.
                 </p>
               </div>
             )}
@@ -447,10 +633,126 @@ export function ProcurementHub() {
             transition={{ duration: 0.35, delay: 0.2 }}
             className="rounded-3xl border border-border bg-card p-6 shadow-lg shadow-black/10"
           >
+            <div className="flex items-center gap-3">
+              <div className="rounded-2xl bg-amber-500/15 p-3">
+                <Plus className="h-5 w-5 text-amber-400" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-foreground">Add Catalog Item</h2>
+                <p className="text-sm text-muted-foreground">
+                  Create a new supplier listing with the backend add-item endpoint.
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleAddItem} className="mt-6 space-y-4">
+              <div className="space-y-2">
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Item Name
+                </label>
+                <Input
+                  name="itemName"
+                  value={listingForm.itemName}
+                  onChange={handleListingFieldChange}
+                  placeholder="Industrial Copper Wire"
+                  className="h-11 rounded-xl border-border bg-background"
+                />
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Category
+                  </label>
+                  <Input
+                    name="category"
+                    value={listingForm.category}
+                    onChange={handleListingFieldChange}
+                    placeholder="Raw Materials"
+                    className="h-11 rounded-xl border-border bg-background"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Supplier Name
+                  </label>
+                  <Input
+                    name="supplierName"
+                    value={listingForm.supplierName}
+                    onChange={handleListingFieldChange}
+                    placeholder="Metro Metals"
+                    className="h-11 rounded-xl border-border bg-background"
+                  />
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Units Available
+                  </label>
+                  <Input
+                    type="number"
+                    min="1"
+                    step="1"
+                    name="unitsAvailable"
+                    value={listingForm.unitsAvailable}
+                    onChange={handleListingFieldChange}
+                    placeholder="120"
+                    className="h-11 rounded-xl border-border bg-background"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Wholesale Price
+                  </label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    name="wholesalePrice"
+                    value={listingForm.wholesalePrice}
+                    onChange={handleListingFieldChange}
+                    placeholder="480"
+                    className="h-11 rounded-xl border-border bg-background"
+                  />
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-border bg-background/40 px-4 py-3 text-xs text-muted-foreground">
+                Items added here are saved through the backend, but the current `get-catalog`
+                endpoint excludes the logged-in user&apos;s own listings from this browse view.
+              </div>
+
+              {listingError ? (
+                <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+                  {listingError}
+                </div>
+              ) : null}
+
+              <Button
+                type="submit"
+                disabled={isAddingItem}
+                className="h-11 w-full rounded-xl bg-amber-500 text-white hover:bg-amber-600"
+              >
+                {isAddingItem ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                {isAddingItem ? 'Adding Item...' : 'Add Item to Catalog'}
+              </Button>
+            </form>
+          </motion.section>
+
+          <motion.section
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35, delay: 0.25 }}
+            className="rounded-3xl border border-border bg-card p-6 shadow-lg shadow-black/10"
+          >
             <div>
               <h2 className="text-lg font-semibold text-foreground">Recent Purchases</h2>
               <p className="text-sm text-muted-foreground">
-                Stored in local state for this frontend simulation.
+                Recorded from successful buy API calls in this session.
               </p>
             </div>
 
@@ -479,7 +781,7 @@ export function ProcurementHub() {
                 ))
               ) : (
                 <div className="rounded-2xl border border-dashed border-border bg-background/40 px-6 py-10 text-center text-sm text-muted-foreground">
-                  No purchases recorded yet.
+                  No successful purchases recorded in this session yet.
                 </div>
               )}
             </div>

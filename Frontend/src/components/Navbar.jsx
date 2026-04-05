@@ -5,6 +5,7 @@ import { useTheme } from './ThemeContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import logo from "../../dist/assets/logo.png"
 
 const ACCESS_TOKEN_STORAGE_KEY = 'marketpulse-access-token';
 
@@ -34,12 +35,12 @@ export function Navbar() {
     return <header className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between h-16 px-6 transition-colors duration-300 border-b bg-background border-border">
       {/* Logo */}
       <div className="flex items-center gap-2 min-w-[220px]">
-        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-500/20">
-          <span className="text-sm font-bold text-emerald-500">M</span>
+        <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-emerald-500/20">
+          <img src={logo} alt = "Logo" width={23}/>
         </div>
         <span className="text-xl font-bold tracking-tight">
           <span className="text-emerald-500">Market</span>
-          <span className="text-foreground">Pulse</span>
+          <span className="text-foreground">Pul$e</span>
         </span>
       </div>
 
@@ -98,11 +99,11 @@ export function Navbar() {
         </button>
 
         {/* Notification Bell */}
-        <button className="relative p-2 transition-colors rounded-xl hover:bg-secondary">
+        {/* <button className="relative p-2 transition-colors rounded-xl hover:bg-secondary">
           <Bell className="w-5 h-5 text-muted-foreground"/>
           <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-background"/>
-        </button>
-        <button title = "Logout" onClick={handleLogout} disabled={isLoggingOut} className='flex items-center gap-x-1 bg-[#10b981] px-2 py-1 rounded-sm disabled:opacity-50 disabled:cursor-not-allowed'>
+        </button> */}
+        <button title = "Logout" onClick={handleLogout} disabled={isLoggingOut} className='flex items-center gap-x-1 bg-[#10b981] px-2 py-1 rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:-translate-y-0.5 duration-300'>
           <LogOutIcon size={19}/>
           {isLoggingOut ? 'Logging out...' : 'Logout'}
         </button>
