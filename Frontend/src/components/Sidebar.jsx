@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { TrendingUp, Package, Brain, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { TrendingUp, Package, Brain, ShoppingCart, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { motion } from 'framer-motion';
 import axios from 'axios';
 import { useSidebar } from './SidebarContext';
@@ -18,6 +18,11 @@ const navItems = [
     label: 'Stock Intelligence',
     path: '/stock-intelligence',
     icon: Package,
+  },
+  {
+    label: 'Procurement Hub',
+    path: '/procurement',
+    icon: ShoppingCart,
   },
   {
     label: 'Business Copilot',

@@ -7,6 +7,7 @@ import { Sidebar } from './components/Sidebar';
 import { TrendCommand } from './pages/TrendCommand';
 import { StockIntelligence } from './pages/StockIntelligence';
 import { BusinessCopilot } from './pages/BusinessCopilot';
+import { ProcurementHub } from './pages/ProcurementHub';
 import { Profile } from './pages/Profile';
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
@@ -27,6 +28,7 @@ function AppLayout() {
         <Routes>
           <Route path="/trend-command" element={<TrendCommand />} />
           <Route path="/stock-intelligence" element={<StockIntelligence />} />
+          <Route path="/procurement" element={<ProcurementHub />} />
           <Route path="/business-copilot" element={<BusinessCopilot />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="*" element={<Navigate to="/login" replace />} />
