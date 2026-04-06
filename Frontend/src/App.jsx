@@ -13,9 +13,12 @@ import { Login } from './pages/Login';
 import { Register } from './pages/Register';
 import { ForgotPassword } from './pages/ForgotPassword';
 import { ResetPassword } from './pages/ResetPassword';
+import { GetStarted } from './pages/GetStarted';
 import EmailVerification from './pages/EmailVerification'
+import { useLoggedInStatus } from './store/LoginStatus';
 
 function AppLayout() {
+  const isLoggedIn = useLoggedInStatus((state) => state.isLoggedIn);
   const { collapsed } = useSidebar();
   return <div className="min-h-screen font-sans transition-colors duration-300 bg-background">
     <Navbar />
@@ -26,12 +29,22 @@ function AppLayout() {
     }}>
       <div className="p-8">
         <Routes>
-          <Route path="/trend-command" element={<TrendCommand />} />
-          <Route path="/stock-intelligence" element={<StockIntelligence />} />
-          <Route path="/procurement" element={<ProcurementHub />} />
-          <Route path="/business-copilot" element={<BusinessCopilot />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="*" element={<Navigate to="/login" replace />} />
+          {isLoggedIn ? (
+            <>
+              <Route path="/trend-command" element={<TrendCommand />} />
+              <Route path="/stock-intelligence" element={<StockIntelligence />} />
+              <Route path="/procurement" element={<ProcurementHub />} />
+              <Route path="/business-copilot" element={<BusinessCopilot />} />
+              <Route path="/profile" element={<Profile />} />
+              <Route path="*" element={<Navigate to="/trend-command" replace />} />
+            </>
+          ) : (
+            <>
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="*" element={<Navigate to="/login" replace />} />
+            </>
+          )}
         </Routes>
       </div>
     </main>
@@ -45,7 +58,8 @@ function AppRouter() {
     <Route path="/register" element={<Register />} />
     <Route path="/forgotPassword" element={<ForgotPassword />} />
     <Route path="/reset-password/:token" element={<ResetPassword />} />
-    <Route path="/verify-email/:emailVerificationToken" element = {<EmailVerification />} />
+    <Route path="/verify-email/:emailVerificationToken" element={<EmailVerification />} />
+    <Route path="/get-started/:userID" element={<GetStarted />} />
     <Route path="/*" element={<AppLayout />} />
   </Routes>;
 }

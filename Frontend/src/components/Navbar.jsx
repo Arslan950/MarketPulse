@@ -5,11 +5,12 @@ import { useTheme } from './ThemeContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import logo from "../../dist/assets/logo.png"
-
+import logo from "../../public/logo.png"
+import { useLoggedInStatus } from '../store/LoginStatus';
 const ACCESS_TOKEN_STORAGE_KEY = 'marketpulse-access-token';
 
 export function Navbar() {
+    const {changeStatus} = useLoggedInStatus();
     const { theme, toggleTheme } = useTheme();
     const navigate = useNavigate();
     const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -26,6 +27,9 @@ export function Navbar() {
                     Authorization: `Bearer ${accessToken}`
                 } : {},
             });
+
+            changeStatus();
+            
         } finally {
             window.localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
             navigate('/login');

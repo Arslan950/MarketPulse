@@ -1,5 +1,5 @@
 import {Router} from  "express"
-import {registerUser ,login , logout , getUserInfo , verifyEmail, getEmailVerificationStatus , resendEmailverification , forgotPassword , resetForgotPassword} from "../controllers/auth.controller.js"
+import {registerUser , setBasicInfo , login , logout , getUserInfo , verifyEmail, getEmailVerificationStatus , resendEmailverification , forgotPassword , resetForgotPassword} from "../controllers/auth.controller.js"
 import { validation } from "../middleware/validator.middleware.js";
 import { userRegistrationValidator, userLoginValidator , userForgotPasswordValidator , userResetForgotPasswordValidator} from "../validators/index.js";
 import { verifyToken } from "../middleware/auth.middleware.js";
@@ -7,6 +7,8 @@ import { verifyToken } from "../middleware/auth.middleware.js";
 const router = Router();
 //unsecured
 router.route("/register").post(userRegistrationValidator(),validation,registerUser);
+
+router.route("/set-basic-info/:userID").post(setBasicInfo);
 
 router.route("/login").post(userLoginValidator(),validation,login);
 

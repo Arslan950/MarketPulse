@@ -1,13 +1,17 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { AuthField } from '../components/AuthField';
 import { AuthLayout } from '../components/AuthLayout';
+import { useLoggedInStatus } from '../store/LoginStatus';
 
 const ACCESS_TOKEN_STORAGE_KEY = 'marketpulse-access-token';
 
 export function Login() {
+
+  const { isLoggedIn, changeStatus } = useLoggedInStatus();
+
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     email: '',
@@ -15,6 +19,13 @@ export function Login() {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+
+
+  useEffect(() => {
+    if (isLoggedIn) {
+      navigate('/trend-command');
+    }
+  }, [isLoggedIn, navigate]);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -44,7 +55,7 @@ export function Login() {
       if (accessToken) {
         window.localStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, accessToken);
       }
-
+      changeStatus();
       navigate('/trend-command');
     } catch (error) {
       const validationErrors = error.response?.data?.errors;
@@ -55,9 +66,9 @@ export function Login() {
 
       setErrorMessage(
         firstValidationError ||
-          error.response?.data?.message ||
-          error.message ||
-          'Unable to log in right now. Please try again.',
+        error.response?.data?.message ||
+        error.message ||
+        'Unable to log in right now. Please try again.',
       );
     } finally {
       setIsSubmitting(false);

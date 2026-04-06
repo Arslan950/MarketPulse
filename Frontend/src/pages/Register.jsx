@@ -137,7 +137,7 @@ export function Register() {
   };
 
   const handleGoToSignIn = () => {
-    navigate('/login');
+    navigate(`/get-started/${registeredUserId}`);
   };
 
   return (
@@ -185,6 +185,7 @@ export function Register() {
           type="password"
           name="password"
           placeholder="Create a strong password"
+          allowPasswordToggle
           value={formData.password}
           onChange={handleChange}
           required
@@ -219,12 +220,12 @@ export function Register() {
           onClick={handleGoToSignIn}
           className="w-full h-12 text-base font-semibold rounded-2xl"
         >
-          Go to Sign In
+          Get Started
         </Button>
 
         {!isEmailVerified && successMessage ? (
           <p className="text-xs text-center text-muted-foreground">
-            The sign-in button will unlock automatically after your email is verified.
+            The Get started button will unlock automatically after your email is verified.
           </p>
         ) : null}
       </form>

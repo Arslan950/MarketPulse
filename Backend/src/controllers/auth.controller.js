@@ -74,6 +74,33 @@ const registerUser = asyncHandler(async (req, res) => {
         )
 });
 
+const setBasicInfo = asyncHandler(async (req,res) => {
+    const { businessName , description , websiteURL , profilePictureURL } = req.body ;
+    const {userID} = req.params ;
+
+    const user = await User.findById(userID).select(
+        "-password -refreshToken -emailVerificationToken -emailVerificationExpires",
+    )
+
+    if(!user){
+        throw new ApiError(449,"User do not exist in database");
+    }
+
+    user.profilePicture = profilePictureURL;
+    user.businessInfo.businessName = businessName ;
+    user.businessInfo.description = description ;
+    user.businessInfo.websiteURL = websiteURL ;
+
+    await user.save({validateBeforeSave : false});
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(200,{user},"User Basic info setted succesfully")
+        )
+
+});
+
 const login = asyncHandler(async (req, res) => {
     const { email, password } = req.body;
     if (!email) {
@@ -361,6 +388,7 @@ const resetForgotPassword = asyncHandler(async (req, res) => {
 
 export {
     registerUser,
+    setBasicInfo,
     login,
     logout,
     getUserInfo,
