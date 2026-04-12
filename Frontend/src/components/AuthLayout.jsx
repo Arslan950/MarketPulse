@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import { Moon, Sun, TrendingUp } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useTheme } from './ThemeContext';
-import logo from "../../public/logo.png";
 
 export function AuthLayout({ title, subtitle, children, footer }) {
   const { theme, toggleTheme } = useTheme();
@@ -18,7 +17,7 @@ export function AuthLayout({ title, subtitle, children, footer }) {
           <div className="flex items-center justify-between">
             <Link to="/" className="flex items-center gap-3">
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-500/15 text-emerald-500">
-                <img src={logo} alt="Logo" width={25}/>
+                <img src="/logo.png" alt="Logo" width={25}/>
               </div>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.28em] text-emerald-500/80">

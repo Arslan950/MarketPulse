@@ -1,12 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { TrendingUp, Package, Brain, ShoppingCart, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { motion } from 'framer-motion';
-import axios from 'axios';
 import { useSidebar } from './SidebarContext';
 import { Avatar, AvatarFallback, AvatarImage } from './Avatar';
-
-const ACCESS_TOKEN_STORAGE_KEY = 'marketpulse-access-token';
+import { useAuthStore } from '../store/UserInfo';
 
 const navItems = [
   {
@@ -42,45 +40,13 @@ const getInitials = (name = '') =>
 
 export function Sidebar() {
   const { collapsed, toggleSidebar } = useSidebar();
-  const [currentUser, setCurrentUser] = useState(null);
+  const currentUser = useAuthStore((state) => state.user);
+  const business = useAuthStore((state) => state.business);
+  const isLoadingProfile = useAuthStore((state) => state.isLoading);
 
-  useEffect(() => {
-    let isMounted = true;
-
-    const fetchCurrentUser = async () => {
-      const accessToken = window.localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY);
-
-      try {
-        const response = await axios.get('http://localhost:3000/api/v1/auth/current-user', {
-          withCredentials: true,
-          headers: accessToken
-            ? {
-                Authorization: `Bearer ${accessToken}`,
-              }
-            : {},
-        });
-
-        if (!isMounted) {
-          return;
-        }
-
-        setCurrentUser(response.data?.data?.data || null);
-      } catch (error) {
-        if (isMounted) {
-          setCurrentUser(null);
-        }
-      }
-    };
-
-    fetchCurrentUser();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  const userName = currentUser?.fullName || 'Profile';
-  const userEmail = currentUser?.email || 'Email not available';
+  const profilePicture = business?.profilePicture || '';
+  const userName = currentUser?.fullName || (isLoadingProfile ? 'Loading profile...' : 'Profile');
+  const userEmail = currentUser?.email || (isLoadingProfile ? 'Loading...' : 'Email not available');
   const userInitials = getInitials(currentUser?.fullName);
 
   return (
@@ -139,14 +105,32 @@ export function Sidebar() {
 
       <NavLink to="/profile" className="mt-auto" title={collapsed ? userName : undefined}>
         {!collapsed ? (
-          <div className="flex items-center gap-3 p-3 mx-1 transition-colors border rounded-2xl bg-secondary/50 border-border hover:bg-secondary">
+          <div className="mx-1 rounded-2xl bg-secondary/50 border border-border p-3 flex items-center gap-3 hover:bg-secondary transition-colors">
+            <Avatar size="lg">
+              {/* Dynamically set the image source */}
+              <AvatarImage src={profilePicture} alt={userName} />
+              {/* Fallback now uses dynamic initials instead of hardcoded 'U' */}
+              <AvatarFallback className="bg-emerald-500/20 text-emerald-500 text-xs font-semibold">
+                {userInitials}
+              </AvatarFallback>
+            </Avatar>
             <div className="min-w-0">
-              <p className="text-sm font-medium truncate text-foreground">{userName}</p>
-              <p className="text-muted-foreground text-[11px] truncate">{userEmail}</p>
+              <p className="text-foreground text-sm font-medium truncate">
+                {userName}
+              </p>
+              <p className="text-muted-foreground text-[11px] truncate">
+                {userEmail}
+              </p>
             </div>
           </div>
         ) : (
           <div className="flex justify-center">
+            <Avatar size="lg">
+              <AvatarImage src={profilePicture} alt={userName} />
+              <AvatarFallback className="bg-emerald-500/20 text-emerald-500 text-xs font-semibold">
+                {userInitials}
+              </AvatarFallback>
+            </Avatar>
           </div>
         )}
       </NavLink>

@@ -75,11 +75,41 @@ const userResetForgotPasswordValidator = () => {
     ]
 };
 
+const businessSetupValidator = () => {
+    return [
+        body("businessName")
+            .trim()
+            .notEmpty()
+            .withMessage("Business name is required")
+            .isLength({ min: 2, max: 100 })
+            .withMessage("Business name must be between 2 and 100 characters"),
+
+        body("description")
+            .trim()
+            .notEmpty()
+            .withMessage("Business description is required")
+            .isLength({ min: 10 })
+            .withMessage("Description should be at least 10 characters to be useful for the LLM"),
+
+        body("website")
+            .optional({ checkFalsy: true })
+            .trim()
+            .isURL({ require_protocol: true })
+            .withMessage("Website must be a valid URL including http:// or https://"),
+
+        body("profilePicture")
+            .optional({ checkFalsy: true })
+            .trim()
+            .isURL()
+            .withMessage("Profile picture must be a valid URL")
+    ];
+};
 
 
 export {
     userRegistrationValidator,
     userLoginValidator,
     userForgotPasswordValidator,
-    userResetForgotPasswordValidator
+    userResetForgotPasswordValidator,
+    businessSetupValidator
 }

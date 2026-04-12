@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from './components/ThemeContext';
 import { SidebarProvider, useSidebar } from './components/SidebarContext';
@@ -16,10 +16,23 @@ import { ResetPassword } from './pages/ResetPassword';
 import { GetStarted } from './pages/GetStarted';
 import EmailVerification from './pages/EmailVerification'
 import { useLoggedInStatus } from './store/LoginStatus';
+import { useAuthStore } from './store/UserInfo';
 
 function AppLayout() {
   const isLoggedIn = useLoggedInStatus((state) => state.isLoggedIn);
   const { collapsed } = useSidebar();
+  const fetchProfile = useAuthStore((state) => state.fetchProfile);
+  const clearProfile = useAuthStore((state) => state.clearProfile);
+
+  useEffect(() => {
+    if (isLoggedIn) {
+      fetchProfile();
+      return;
+    }
+
+    clearProfile();
+  }, [clearProfile, fetchProfile, isLoggedIn]);
+
   return <div className="min-h-screen font-sans transition-colors duration-300 bg-background">
     <Navbar />
     <Sidebar />

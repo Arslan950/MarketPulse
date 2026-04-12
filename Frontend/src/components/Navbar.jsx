@@ -5,7 +5,6 @@ import { useTheme } from './ThemeContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import logo from "../../public/logo.png"
 import { useLoggedInStatus } from '../store/LoginStatus';
 const ACCESS_TOKEN_STORAGE_KEY = 'marketpulse-access-token';
 
@@ -38,9 +37,12 @@ export function Navbar() {
 
     return <header className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between h-16 px-6 transition-colors duration-300 border-b bg-background border-border">
       {/* Logo */}
-      <div className="flex items-center gap-2 min-w-[220px]">
+      <div className="flex items-center gap-2 min-w-[220px] hover:cursor-pointer" onClick={(e) => {
+        e.preventDefault();
+        navigate("/trend-command")
+      }}>
         <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-emerald-500/20">
-          <img src={logo} alt = "Logo" width={23}/>
+          <img src="/logo.png" alt = "Logo" width={23}/>
         </div>
         <span className="text-xl font-bold tracking-tight">
           <span className="text-emerald-500">Market</span>
