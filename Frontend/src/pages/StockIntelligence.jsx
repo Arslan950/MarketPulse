@@ -14,6 +14,7 @@ import {
   PencilLine,
   X,
   Loader2,
+  Sparkles,
 } from 'lucide-react';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
@@ -84,7 +85,6 @@ const buildCsvValue = (value) => `"${String(value ?? '').replace(/"/g, '""')}"`;
 const convertFileToDataUrl = (file) =>
   new Promise((resolve, reject) => {
     const reader = new FileReader();
-
     reader.onload = () => resolve(reader.result);
     reader.onerror = () => reject(new Error('Unable to read the selected image file.'));
     reader.readAsDataURL(file);
@@ -107,13 +107,11 @@ export function StockIntelligence() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [pendingActionId, setPendingActionId] = useState(null);
   const [selectedImageName, setSelectedImageName] = useState('');
+  const [viewingImage, setViewingImage] = useState(null);
 
   const fetchInventory = async ({ silent = false } = {}) => {
-    if (!silent) {
-      setIsLoading(true);
-    }
+    if (!silent) setIsLoading(true);
     setLoadError('');
-
     try {
       const response = await axios.get(`${INVENTORY_API_URL}/products-list`, {
         withCredentials: true,
@@ -123,9 +121,7 @@ export function StockIntelligence() {
     } catch (error) {
       setLoadError(error?.response?.data?.message || 'Unable to fetch inventory right now.');
     } finally {
-      if (!silent) {
-        setIsLoading(false);
-      }
+      if (!silent) setIsLoading(false);
     }
   };
 
@@ -145,14 +141,8 @@ export function StockIntelligence() {
   }, [categories, categoryFilter]);
 
   useEffect(() => {
-    if (!pageMessage) {
-      return undefined;
-    }
-
-    const timeoutId = window.setTimeout(() => {
-      setPageMessage(null);
-    }, 3500);
-
+    if (!pageMessage) return undefined;
+    const timeoutId = window.setTimeout(() => setPageMessage(null), 3500);
     return () => window.clearTimeout(timeoutId);
   }, [pageMessage]);
 
@@ -179,13 +169,11 @@ export function StockIntelligence() {
     items.sort((leftItem, rightItem) => {
       const leftValue = leftItem[sortField];
       const rightValue = rightItem[sortField];
-
       if (typeof leftValue === 'string' && typeof rightValue === 'string') {
         return sortDir === 'asc'
           ? leftValue.localeCompare(rightValue)
           : rightValue.localeCompare(leftValue);
       }
-
       return sortDir === 'asc' ? leftValue - rightValue : rightValue - leftValue;
     });
 
@@ -202,7 +190,6 @@ export function StockIntelligence() {
       setSortDir((currentDirection) => (currentDirection === 'asc' ? 'desc' : 'asc'));
       return;
     }
-
     setSortField(field);
     setSortDir('asc');
   };
@@ -243,18 +230,12 @@ export function StockIntelligence() {
 
   const handleFieldChange = (event) => {
     const { name, value } = event.target;
-    setFormData((currentFormData) => ({
-      ...currentFormData,
-      [name]: value,
-    }));
+    setFormData((currentFormData) => ({ ...currentFormData, [name]: value }));
   };
 
   const handleImageUpload = async (event) => {
     const file = event.target.files?.[0];
-
-    if (!file) {
-      return;
-    }
+    if (!file) return;
 
     if (!file.type.startsWith('image/')) {
       setFormError('Please upload a valid image file.');
@@ -271,11 +252,7 @@ export function StockIntelligence() {
     try {
       setFormError('');
       const imageDataUrl = await convertFileToDataUrl(file);
-
-      setFormData((currentFormData) => ({
-        ...currentFormData,
-        productImage: imageDataUrl,
-      }));
+      setFormData((currentFormData) => ({ ...currentFormData, productImage: imageDataUrl }));
       setSelectedImageName(file.name);
     } catch (error) {
       setFormError(error.message || 'Unable to process the selected image.');
@@ -355,9 +332,7 @@ export function StockIntelligence() {
 
   const handleRemove = async (product) => {
     const confirmed = window.confirm(`Remove "${product.productName}" from inventory?`);
-    if (!confirmed) {
-      return;
-    }
+    if (!confirmed) return;
 
     setPendingActionId(product.id);
     setPageMessage(null);
@@ -369,9 +344,7 @@ export function StockIntelligence() {
 
       setInventory((currentInventory) => currentInventory.filter((item) => item.id !== product.id));
 
-      if (editingProductId === product.id) {
-        resetPanel();
-      }
+      if (editingProductId === product.id) resetPanel();
 
       setPageMessage({
         type: 'success',
@@ -388,9 +361,7 @@ export function StockIntelligence() {
   };
 
   const handleExport = () => {
-    if (filtered.length === 0) {
-      return;
-    }
+    if (filtered.length === 0) return;
 
     const header = [
       'Product Name',
@@ -421,7 +392,6 @@ export function StockIntelligence() {
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const objectUrl = window.URL.createObjectURL(blob);
     const anchor = document.createElement('a');
-
     anchor.href = objectUrl;
     anchor.setAttribute('download', 'inventory-export.csv');
     document.body.appendChild(anchor);
@@ -433,15 +403,13 @@ export function StockIntelligence() {
   const previewQuantityValue = Number(formData.stockQuantity);
   const previewSellingPriceValue = Number(formData.sellingPrice);
   const previewQuantity = Number.isFinite(previewQuantityValue) ? Math.max(0, previewQuantityValue) : 0;
-  const previewSellingPrice = Number.isFinite(previewSellingPriceValue)
-    ? Math.max(0, previewSellingPriceValue)
-    : 0;
+  const previewSellingPrice = Number.isFinite(previewSellingPriceValue) ? Math.max(0, previewSellingPriceValue) : 0;
   const previewStatus = previewQuantity === 0 ? 'Out of Stock' : 'In Stock';
   const previewStatusConfig = statusConfig[previewStatus];
   const previewImage = formData.productImage.trim() || DEFAULT_PRODUCT_IMAGE;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 relative">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -513,9 +481,7 @@ export function StockIntelligence() {
               <Package className="w-5 h-5 text-emerald-500" />
             </div>
             <div>
-              <p className="text-xs font-medium tracking-wider uppercase text-muted-foreground">
-                Total Products
-              </p>
+              <p className="text-xs font-medium tracking-wider uppercase text-muted-foreground">Total Products</p>
               <p className="text-2xl font-bold text-foreground">{totalProducts}</p>
             </div>
           </div>
@@ -527,14 +493,9 @@ export function StockIntelligence() {
               <ArrowUp className="w-5 h-5 text-blue-500" />
             </div>
             <div>
-              <p className="text-xs font-medium tracking-wider uppercase text-muted-foreground">
-                Inventory Value
-              </p>
+              <p className="text-xs font-medium tracking-wider uppercase text-muted-foreground">Inventory Value</p>
               <p className="text-2xl font-bold text-foreground">
-                {formatCurrency(totalValue, {
-                  minimumFractionDigits: 0,
-                  maximumFractionDigits: 0,
-                })}
+                {formatCurrency(totalValue, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
               </p>
             </div>
           </div>
@@ -546,9 +507,7 @@ export function StockIntelligence() {
               <CheckCircle2 className="w-5 h-5 text-emerald-500" />
             </div>
             <div>
-              <p className="text-xs font-medium tracking-wider uppercase text-muted-foreground">
-                In Stock
-              </p>
+              <p className="text-xs font-medium tracking-wider uppercase text-muted-foreground">In Stock</p>
               <p className="text-2xl font-bold text-emerald-400">{inStockCount}</p>
             </div>
           </div>
@@ -560,9 +519,7 @@ export function StockIntelligence() {
               <XCircle className="w-5 h-5 text-red-500" />
             </div>
             <div>
-              <p className="text-xs font-medium tracking-wider uppercase text-muted-foreground">
-                Out of Stock
-              </p>
+              <p className="text-xs font-medium tracking-wider uppercase text-muted-foreground">Out of Stock</p>
               <p className="text-2xl font-bold text-red-400">{outOfStockCount}</p>
             </div>
           </div>
@@ -591,9 +548,7 @@ export function StockIntelligence() {
           </SelectTrigger>
           <SelectContent>
             {categories.map((category) => (
-              <SelectItem key={category} value={category}>
-                {category}
-              </SelectItem>
+              <SelectItem key={category} value={category}>{category}</SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -604,9 +559,7 @@ export function StockIntelligence() {
           </SelectTrigger>
           <SelectContent>
             {statusOptions.map((status) => (
-              <SelectItem key={status} value={status}>
-                {status}
-              </SelectItem>
+              <SelectItem key={status} value={status}>{status}</SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -616,271 +569,293 @@ export function StockIntelligence() {
         </p>
       </motion.div>
 
+      {/* IMPROVED MODAL */}
       {panelMode ? (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35 }}
-          className="border bg-card border-border rounded-2xl"
-        >
-          <div className="flex flex-col gap-4 border-b border-border p-5 md:flex-row md:items-start md:justify-between">
-            <div>
-              <p className="text-xs font-semibold tracking-[0.2em] uppercase text-emerald-400/90">
-                {panelMode === 'edit' ? 'Update Inventory Item' : 'Add Inventory Item'}
-              </p>
-              <h2 className="mt-1 text-2xl font-semibold text-foreground">
-                {panelMode === 'edit' ? 'Edit Product' : 'Add Product'}
-              </h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {panelMode === 'edit'
-                  ? 'Adjust product information and save the changes back to inventory.'
-                  : 'Create a new inventory item using the live backend product endpoint.'}
-              </p>
+        <div className="fixed inset-0 z-40 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 15 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.25 }}
+            className="w-full max-w-5xl max-h-[90vh] overflow-y-auto border bg-card border-border rounded-2xl shadow-2xl flex flex-col"
+          >
+            {/* Modal Header */}
+            <div className="flex flex-col gap-4 border-b border-border p-6 md:flex-row md:items-start md:justify-between sticky top-0 bg-card z-10">
+              <div>
+                <p className="text-xs font-semibold tracking-[0.2em] uppercase text-emerald-400/90">
+                  {panelMode === 'edit' ? 'Update Inventory Item' : 'Add Inventory Item'}
+                </p>
+                <h2 className="mt-1 text-2xl font-semibold text-foreground">
+                  {panelMode === 'edit' ? 'Edit Product' : 'Add Product'}
+                </h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {panelMode === 'edit'
+                    ? 'Adjust product information and save the changes back to inventory.'
+                    : 'Create a new inventory item using the live backend product endpoint.'}
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                onClick={resetPanel}
+                className="self-start rounded-xl text-muted-foreground hover:bg-secondary/70 hover:text-foreground"
+              >
+                <X className="w-5 h-5" />
+              </Button>
             </div>
 
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              onClick={resetPanel}
-              className="self-start rounded-xl text-muted-foreground hover:bg-secondary/70 hover:text-foreground"
-            >
-              <X className="w-4 h-4" />
-            </Button>
-          </div>
+            {/* Modal Body */}
+            <form onSubmit={handleSubmit} className="grid gap-6 p-6 lg:grid-cols-[1.4fr,0.9fr]">
+              {/* LEFT COLUMN — Form fields */}
+              <div className="space-y-5">
 
-          <form onSubmit={handleSubmit} className="grid gap-6 p-5 lg:grid-cols-[1.4fr,0.9fr]">
-            <div className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <label className="space-y-2">
+                {/* Row 1: Product Name + Category */}
+                <div className="grid gap-4 md:grid-cols-2">
+                  <label className="space-y-2">
+                    <span className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">
+                      Product Name
+                    </span>
+                    <Input
+                      name="productName"
+                      value={formData.productName}
+                      onChange={handleFieldChange}
+                      placeholder="Canvas Sneakers"
+                      className="h-11 rounded-xl bg-background border-border"
+                    />
+                  </label>
+
+                  <label className="space-y-2">
+                    <span className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">
+                      Category
+                    </span>
+                    <Input
+                      name="category"
+                      value={formData.category}
+                      onChange={handleFieldChange}
+                      placeholder="Footwear"
+                      className="h-11 rounded-xl bg-background border-border"
+                    />
+                  </label>
+                </div>
+
+                {/* Row 2: Product Image Upload */}
+                <div className="space-y-2">
                   <span className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">
-                    Product Name
+                    Product Image
                   </span>
-                  <Input
-                    name="productName"
-                    value={formData.productName}
-                    onChange={handleFieldChange}
-                    placeholder="Canvas Sneakers"
-                    className="h-11 rounded-xl bg-background border-border"
-                  />
-                </label>
+                  <label className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-background/80 px-4 py-6 text-center transition-colors hover:border-emerald-500/40 hover:bg-secondary/40">
+                    <Plus className="w-5 h-5 mb-3 text-emerald-400" />
+                    <span className="text-sm font-medium text-foreground">Upload product image</span>
+                    <span className="mt-1 text-xs text-muted-foreground">
+                      JPG, PNG, WEBP, or GIF up to 4 MB. We convert it to a URL string automatically.
+                    </span>
+                    <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                  </label>
 
-                <label className="space-y-2">
-                  <span className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">
-                    Category
-                  </span>
-                  <Input
-                    name="category"
-                    value={formData.category}
-                    onChange={handleFieldChange}
-                    placeholder="Footwear"
-                    className="h-11 rounded-xl bg-background border-border"
-                  />
-                </label>
-              </div>
-
-              <div className="space-y-2">
-                <span className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">
-                  Product Image
-                </span>
-                <label className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-background/80 px-4 py-6 text-center transition-colors hover:border-emerald-500/40 hover:bg-secondary/40">
-                  <Plus className="w-5 h-5 mb-3 text-emerald-400" />
-                  <span className="text-sm font-medium text-foreground">
-                    Upload product image
-                  </span>
-                  <span className="mt-1 text-xs text-muted-foreground">
-                    JPG, PNG, WEBP, or GIF up to 4 MB. We convert it to a URL string automatically.
-                  </span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    className="hidden"
-                  />
-                </label>
-
-                {selectedImageName ? (
-                  <div className="flex items-center justify-between rounded-xl border border-border bg-background px-3 py-2">
-                    <div>
-                      <p className="text-sm font-medium text-foreground">{selectedImageName}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {panelMode === 'edit' ? 'Upload another file to replace the current image.' : 'Ready to save with this uploaded image.'}
-                      </p>
+                  {selectedImageName ? (
+                    <div className="flex items-center justify-between rounded-xl border border-border bg-background px-3 py-2">
+                      <div>
+                        <p className="text-sm font-medium text-foreground">{selectedImageName}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {panelMode === 'edit'
+                            ? 'Upload another file to replace the current image.'
+                            : 'Ready to save with this uploaded image.'}
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => {
+                          setFormData((currentFormData) => ({ ...currentFormData, productImage: '' }));
+                          setSelectedImageName('');
+                        }}
+                        className="rounded-xl text-muted-foreground hover:bg-secondary hover:text-foreground"
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
                     </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      onClick={() => {
-                        setFormData((currentFormData) => ({
-                          ...currentFormData,
-                          productImage: '',
-                        }));
-                        setSelectedImageName('');
-                      }}
-                      className="rounded-xl text-muted-foreground hover:bg-secondary hover:text-foreground"
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
-                  </div>
-                ) : (
-                  <p className="text-xs text-muted-foreground">
-                    {panelMode === 'edit'
-                      ? 'Upload a new image only if you want to replace the current one.'
-                      : 'An uploaded image is required before saving the product.'}
-                  </p>
-                )}
-              </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      {panelMode === 'edit'
+                        ? 'Upload a new image only if you want to replace the current one.'
+                        : 'An uploaded image is required before saving the product.'}
+                    </p>
+                  )}
+                </div>
 
-              <div className="grid gap-4 md:grid-cols-3">
-                <label className="space-y-2">
-                  <span className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">
-                    Stock Quantity
-                  </span>
-                  <Input
-                    type="number"
-                    min="0"
-                    step="1"
-                    name="stockQuantity"
-                    value={formData.stockQuantity}
-                    onChange={handleFieldChange}
-                    placeholder="0"
-                    className="h-11 rounded-xl bg-background border-border"
-                  />
-                </label>
+                {/* Row 3: Stock Quantity + Cost Price (2-col) */}
+                <div className="grid gap-4 md:grid-cols-2">
+                  <label className="space-y-2">
+                    <span className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">
+                      Stock Quantity
+                    </span>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="1"
+                      name="stockQuantity"
+                      value={formData.stockQuantity}
+                      onChange={handleFieldChange}
+                      placeholder="0"
+                      className="h-11 rounded-xl bg-background border-border"
+                    />
+                  </label>
 
-                <label className="space-y-2">
-                  <span className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">
-                    Cost Price
-                  </span>
-                  <Input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    name="costPrice"
-                    value={formData.costPrice}
-                    onChange={handleFieldChange}
-                    placeholder="29.99"
-                    className="h-11 rounded-xl bg-background border-border"
-                  />
-                </label>
+                  <label className="space-y-2">
+                    <span className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">
+                      Cost Price
+                    </span>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      name="costPrice"
+                      value={formData.costPrice}
+                      onChange={handleFieldChange}
+                      placeholder="29.99"
+                      className="h-11 rounded-xl bg-background border-border"
+                    />
+                  </label>
+                </div>
 
-                <label className="space-y-2">
+                {/* Row 4: Selling Price — full width with prominent AI button above */}
+                <div className="space-y-2">
                   <span className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">
                     Selling Price
                   </span>
-                  <Input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    name="sellingPrice"
-                    value={formData.sellingPrice}
-                    onChange={handleFieldChange}
-                    placeholder="39.99"
-                    className="h-11 rounded-xl bg-background border-border"
-                  />
-                </label>
-              </div>
-
-              {formError ? (
-                <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
-                  {formError}
-                </div>
-              ) : null}
-
-              <div className="flex flex-wrap items-center justify-end gap-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={resetPanel}
-                  className="rounded-xl border-border"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="gap-2 rounded-xl bg-emerald-500 text-white hover:bg-emerald-600"
-                >
-                  {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                  {panelMode === 'edit' ? 'Save Changes' : 'Add Product'}
-                </Button>
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-border bg-background/70 p-4">
-              <p className="text-xs font-semibold tracking-[0.2em] uppercase text-muted-foreground">
-                Live Preview
-              </p>
-
-              <div className="mt-4 overflow-hidden rounded-2xl border border-border bg-card">
-                <div className="relative aspect-[4/3] overflow-hidden bg-secondary/30">
-                  <img
-                    src={previewImage}
-                    alt={formData.productName || 'Product preview'}
-                    className="object-cover w-full h-full"
-                    onError={(event) => {
-                      event.currentTarget.src = DEFAULT_PRODUCT_IMAGE;
-                    }}
-                  />
-                </div>
-
-                <div className="space-y-4 p-4">
-                  <div>
-                    <h3 className="text-lg font-semibold text-foreground">
-                      {formData.productName.trim() || 'New inventory item'}
-                    </h3>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {formData.category.trim() || 'Choose a category for this product'}
-                    </p>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-3">
-                    <span
-                      className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-semibold ${previewStatusConfig.color}`}
+                  <div className="flex flex-col gap-2">
+                    {/* IMPROVED: Full-width, properly styled AI suggestion button */}
+                    <button
+                      type="button"
+                      onClick={(e) => e.preventDefault()}
+                      className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl
+                        bg-emerald-500/15 border border-emerald-500/30 text-emerald-400
+                        hover:bg-emerald-500/25 hover:border-emerald-500/60 hover:text-emerald-300
+                        active:scale-[0.98] transition-all duration-200 text-sm font-semibold"
                     >
-                      {previewStatusConfig.icon}
-                      {previewStatus}
-                    </span>
-                    <span className="text-sm text-muted-foreground">
-                      Qty: <span className="font-medium text-foreground">{previewQuantity}</span>
-                    </span>
+                      <Sparkles className="w-4 h-4" />
+                      Suggest best price
+                    </button>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      name="sellingPrice"
+                      value={formData.sellingPrice}
+                      onChange={handleFieldChange}
+                      placeholder="39.99"
+                      className="h-11 rounded-xl bg-background border-border"
+                    />
+                  </div>
+                </div>
+
+                {/* Form error */}
+                {formError ? (
+                  <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+                    {formError}
+                  </div>
+                ) : null}
+
+                {/* Form actions */}
+                <div className="flex flex-wrap items-center justify-end gap-3 pt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={resetPanel}
+                    className="rounded-xl border-border"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="gap-2 rounded-xl bg-emerald-500 text-white hover:bg-emerald-600"
+                  >
+                    {isSubmitting ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Plus className="w-4 h-4" />
+                    )}
+                    {panelMode === 'edit' ? 'Save Changes' : 'Add Product'}
+                  </Button>
+                </div>
+              </div>
+
+              {/* RIGHT COLUMN — Live Preview */}
+              <div className="rounded-2xl border border-border bg-background/70 p-4 h-fit">
+                <p className="text-xs font-semibold tracking-[0.2em] uppercase text-muted-foreground">
+                  Live Preview
+                </p>
+
+                <div className="mt-4 overflow-hidden rounded-2xl border border-border bg-card">
+                  <div className="relative aspect-[4/3] overflow-hidden bg-secondary/30">
+                    <img
+                      src={previewImage}
+                      alt={formData.productName || 'Product preview'}
+                      className="object-cover w-full h-full"
+                      onError={(event) => { event.currentTarget.src = DEFAULT_PRODUCT_IMAGE; }}
+                    />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="rounded-xl border border-border bg-card px-3 py-2">
-                      <p className="text-[11px] font-semibold tracking-wider uppercase text-muted-foreground">
-                        Cost Price
-                      </p>
-                      <p className="mt-1 text-base font-semibold text-foreground">
-                        {formatCurrency(formData.costPrice || 0)}
-                      </p>
-                    </div>
-                    <div className="rounded-xl border border-border bg-card px-3 py-2">
-                      <p className="text-[11px] font-semibold tracking-wider uppercase text-muted-foreground">
-                        Selling Price
-                      </p>
-                      <p className="mt-1 text-base font-semibold text-foreground">
-                        {formatCurrency(formData.sellingPrice || 0)}
+                  <div className="space-y-4 p-4">
+                    <div>
+                      <h3 className="text-lg font-semibold text-foreground">
+                        {formData.productName.trim() || 'New inventory item'}
+                      </h3>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {formData.category.trim() || 'Choose a category for this product'}
                       </p>
                     </div>
-                  </div>
 
-                  <div className="rounded-xl border border-emerald-500/15 bg-emerald-500/10 px-3 py-3">
-                    <p className="text-[11px] font-semibold tracking-wider uppercase text-emerald-300/80">
-                      Estimated Total Value
-                    </p>
-                    <p className="mt-1 text-xl font-semibold text-foreground">
-                      {formatCurrency(previewQuantity * previewSellingPrice)}
-                    </p>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <span
+                        className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-semibold ${previewStatusConfig.color}`}
+                      >
+                        {previewStatusConfig.icon}
+                        {previewStatus}
+                      </span>
+                      <span className="text-sm text-muted-foreground">
+                        Qty: <span className="font-medium text-foreground">{previewQuantity}</span>
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="rounded-xl border border-border bg-card px-3 py-2">
+                        <p className="text-[11px] font-semibold tracking-wider uppercase text-muted-foreground">
+                          Cost Price
+                        </p>
+                        <p className="mt-1 text-base font-semibold text-foreground">
+                          {formatCurrency(formData.costPrice || 0)}
+                        </p>
+                      </div>
+                      <div className="rounded-xl border border-border bg-card px-3 py-2">
+                        <p className="text-[11px] font-semibold tracking-wider uppercase text-muted-foreground">
+                          Selling Price
+                        </p>
+                        <p className="mt-1 text-base font-semibold text-foreground">
+                          {formatCurrency(formData.sellingPrice || 0)}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl border border-emerald-500/15 bg-emerald-500/10 px-3 py-3">
+                      <p className="text-[11px] font-semibold tracking-wider uppercase text-emerald-300/80">
+                        Estimated Total Value
+                      </p>
+                      <p className="mt-1 text-xl font-semibold text-foreground">
+                        {formatCurrency(previewQuantity * previewSellingPrice)}
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          </form>
-        </motion.div>
+            </form>
+          </motion.div>
+        </div>
       ) : null}
 
+      {/* TABLE */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -955,7 +930,6 @@ export function StockIntelligence() {
             {!isLoading &&
               filtered.map((item) => {
                 const currentStatus = statusConfig[item.status];
-
                 return (
                   <TableRow key={item.id} className="transition-colors border-border hover:bg-secondary/50">
                     <TableCell>
@@ -963,16 +937,13 @@ export function StockIntelligence() {
                         <img
                           src={item.productImage}
                           alt={item.productName}
-                          className="object-cover w-10 h-10 border rounded-lg border-border"
-                          onError={(event) => {
-                            event.currentTarget.src = DEFAULT_PRODUCT_IMAGE;
-                          }}
+                          onClick={() => setViewingImage(item.productImage)}
+                          className="object-cover w-10 h-10 border rounded-lg border-border cursor-pointer transition-opacity hover:opacity-75"
+                          onError={(event) => { event.currentTarget.src = DEFAULT_PRODUCT_IMAGE; }}
                         />
                         <div className="min-w-0">
                           <p className="text-sm font-medium truncate text-foreground">{item.productName}</p>
-                          <p className="text-xs text-muted-foreground">
-                            Cost {formatCurrency(item.costPrice)}
-                          </p>
+                          <p className="text-xs text-muted-foreground">Cost {formatCurrency(item.costPrice)}</p>
                         </div>
                       </div>
                     </TableCell>
@@ -980,19 +951,13 @@ export function StockIntelligence() {
                     <TableCell className="text-sm text-muted-foreground">{item.category}</TableCell>
 
                     <TableCell>
-                      <span
-                        className={`text-sm font-semibold ${
-                          item.stockQuantity === 0 ? 'text-red-500' : 'text-foreground'
-                        }`}
-                      >
+                      <span className={`text-sm font-semibold ${item.stockQuantity === 0 ? 'text-red-500' : 'text-foreground'}`}>
                         {item.stockQuantity}
                       </span>
                     </TableCell>
 
                     <TableCell>
-                      <span
-                        className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-semibold ${currentStatus.color}`}
-                      >
+                      <span className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-semibold ${currentStatus.color}`}>
                         {currentStatus.icon}
                         {item.status}
                       </span>
@@ -1046,15 +1011,42 @@ export function StockIntelligence() {
               <TableRow>
                 <TableCell colSpan={8} className="py-12 text-center">
                   <Package className="w-10 h-10 mx-auto mb-3 opacity-50 text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground">
-                    No products match your filters right now.
-                  </p>
+                  <p className="text-sm text-muted-foreground">No products match your filters right now.</p>
                 </TableCell>
               </TableRow>
             ) : null}
           </TableBody>
         </Table>
       </motion.div>
+
+      {/* Image Viewer Modal */}
+      {viewingImage && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+          onClick={() => setViewingImage(null)}
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="relative max-w-3xl max-h-[90vh] rounded-2xl overflow-hidden shadow-2xl border border-border bg-card"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => setViewingImage(null)}
+              className="absolute top-4 right-4 z-10 bg-black/50 text-white hover:bg-black/70 rounded-xl"
+            >
+              <X className="w-5 h-5" />
+            </Button>
+            <img
+              src={viewingImage}
+              alt="Product preview full"
+              className="w-full h-full object-contain max-h-[80vh]"
+            />
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }

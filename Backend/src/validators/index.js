@@ -101,7 +101,13 @@ const businessSetupValidator = () => {
             .optional({ checkFalsy: true })
             .trim()
             .isURL()
-            .withMessage("Profile picture must be a valid URL")
+            .withMessage("Profile picture must be a valid URL"),
+        
+        body("location")
+            .optional({ checkFalsy: true })
+            .trim()
+            .isString()
+            .withMessage("Location must be a string")
     ];
 };
 

@@ -20,6 +20,10 @@ const businessSchema = new Schema(
             type: String,
             trim: true,
         },
+        location : {
+            type: String,
+            trim : true,
+        },
         owner: {
             type: Schema.Types.ObjectId,
             ref: "User",

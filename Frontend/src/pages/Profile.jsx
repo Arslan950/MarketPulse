@@ -1,7 +1,8 @@
 import React, { useRef, useState } from 'react';
 import axios from 'axios';
 import { motion } from 'framer-motion';
-import { Building2, Globe, Mail, Phone, User, Edit2, Save, X, Camera } from 'lucide-react';
+// Added MapPin for the location icon
+import { Building2, Globe, Mail, Phone, User, Edit2, Save, X, Camera, MapPin } from 'lucide-react'; 
 import { Avatar, AvatarFallback, AvatarImage } from '../components/Avatar';
 import { useAuthStore } from "../store/UserInfo.js";
 
@@ -15,6 +16,7 @@ const initialProfile = {
   businessSummary: '',
   website: '',
   profilePicture: '',
+  location: '', // Added location here
 };
 
 function normalizeWebsiteUrl(website) {
@@ -81,6 +83,7 @@ export function Profile() {
   const isLoadingProfile = useAuthStore((state) => state.isLoading);
   const fetchError = useAuthStore((state) => state.error);
   const updateBusinessInStore = useAuthStore((state) => state.updateBusinessInStore);
+  
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState(initialProfile);
   const [isSaving, setIsSaving] = useState(false);
@@ -94,6 +97,7 @@ export function Profile() {
     businessSummary: business?.description || '',
     website: business?.website || '',
     profilePicture: business?.profilePicture || '',
+    location: business?.location || '', // Pull location from store
   };
 
   const handleEditChange = (e) => {
@@ -104,14 +108,13 @@ export function Profile() {
   const handleImageUpload = (e) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 5 * 1024 * 1024) { // 5MB limit check
+      if (file.size > 5 * 1024 * 1024) { 
         alert("Image must be smaller than 5MB");
         return;
       }
       
       const reader = new FileReader();
       reader.onloadend = () => {
-        // This converts the image to a Base64 string URL
         setEditForm(prev => ({ ...prev, profilePicture: reader.result }));
       };
       reader.readAsDataURL(file);
@@ -123,12 +126,12 @@ export function Profile() {
     const accessToken = window.localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY);
     
     try {
-      // Map the frontend state to the exact payload expected by editBusinessInfo
       const payload = {
         businessName: editForm.businessName,
         description: editForm.businessSummary,
         website: editForm.website,
-        profilePicture: editForm.profilePicture
+        profilePicture: editForm.profilePicture,
+        location: editForm.location // Send location to backend
       };
 
       const response = await axios.patch(
@@ -142,6 +145,7 @@ export function Profile() {
 
       const updatedBusiness =
         response.data?.data?.business ||
+        response.data?.data?.updatebusinessInfo || // account for your specific controller response
         response.data?.data || {};
 
       updateBusinessInStore({
@@ -149,6 +153,7 @@ export function Profile() {
         description: updatedBusiness.description ?? payload.description,
         website: updatedBusiness.website ?? payload.website,
         profilePicture: updatedBusiness.profilePicture ?? payload.profilePicture,
+        location: updatedBusiness.location ?? payload.location, // Update store
       });
       setIsEditing(false);
       
@@ -160,7 +165,7 @@ export function Profile() {
   };
 
   const cancelEdit = () => {
-    setEditForm(profile); // Revert changes
+    setEditForm(profile); 
     setIsEditing(false);
   };
 
@@ -213,7 +218,6 @@ export function Profile() {
           <div className="bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.18),_transparent_45%)] px-6 py-8 sm:px-8">
             <div className="flex flex-col items-center text-center">
               
-              {/* Profile Picture Handler */}
               <div className="relative group">
                 <Avatar size="lg" className="h-28 w-28 border-4 border-background shadow-lg">
                   <AvatarImage src={isEditing ? editForm.profilePicture : profile.profilePicture} alt={profile.fullName || 'Profile picture'} />
@@ -231,7 +235,6 @@ export function Profile() {
                     <Camera className="h-4 w-4" />
                   </button>
                 )}
-                {/* Hidden File Input */}
                 <input 
                   type="file" 
                   ref={fileInputRef} 
@@ -282,13 +285,21 @@ export function Profile() {
             <h2 className="text-xl font-semibold text-foreground">Business Information</h2>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <ProfileField 
               icon={Building2} 
               label="Business Name" 
               value={isEditing ? editForm.businessName : profile.businessName} 
               isEditing={isEditing}
               name="businessName"
+              onChange={handleEditChange}
+            />
+            <ProfileField 
+              icon={MapPin} 
+              label="Location" 
+              value={isEditing ? editForm.location : profile.location} 
+              isEditing={isEditing}
+              name="location"
               onChange={handleEditChange}
             />
             <ProfileField
