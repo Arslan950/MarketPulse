@@ -1,7 +1,6 @@
 import React, { useRef, useState } from 'react';
 import axios from 'axios';
 import { motion } from 'framer-motion';
-// Added MapPin for the location icon
 import { Building2, Globe, Mail, Phone, User, Edit2, Save, X, Camera, MapPin } from 'lucide-react'; 
 import { Avatar, AvatarFallback, AvatarImage } from '../components/Avatar';
 import { useAuthStore } from "../store/UserInfo.js";
@@ -16,7 +15,7 @@ const initialProfile = {
   businessSummary: '',
   website: '',
   profilePicture: '',
-  location: '', // Added location here
+  location: '',
 };
 
 function normalizeWebsiteUrl(website) {
@@ -131,7 +130,7 @@ export function Profile() {
         description: editForm.businessSummary,
         website: editForm.website,
         profilePicture: editForm.profilePicture,
-        location: editForm.location // Send location to backend
+        location: editForm.location 
       };
 
       const response = await axios.patch(

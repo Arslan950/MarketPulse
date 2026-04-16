@@ -101,7 +101,7 @@ export function AuthLayout({ title, subtitle, children, footer }) {
                 Secure access
               </p>
               <h1 className="mt-3 text-3xl font-semibold tracking-tight text-foreground">{title}</h1>
-              <p className="mt-3 text-sm leading-6 text-muted-foreground">{subtitle}</p>
+              <p className="mt-3 text-md leading-6 text-white/75">{subtitle}</p>
             </div>
 
             {children}

@@ -57,7 +57,7 @@ const EmailVerification = () => {
                     }`}
                     onClick={(e) => {
                         e.preventDefault();
-                        navigate("/login");
+                        navigate("/get-started");
                     }}>
                         <div className={`w-2.5 h-2.5 rounded-full animate-pulse ${
                             status === 'error' ? 'bg-red-500' : 'bg-emerald-500'
@@ -67,7 +67,7 @@ const EmailVerification = () => {
                                 status === 'error' ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'
                             }`} 
                         >
-                            Go back to Login
+                            Get started
                         </button>
                     </div>
                 )}

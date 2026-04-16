@@ -6,6 +6,7 @@ import { AuthField } from '../components/AuthField';
 import { AuthLayout } from '../components/AuthLayout';
 
 const VERIFICATION_USER_STORAGE_KEY = 'marketpulse-pending-verification-user-id';
+const ACCESS_TOKEN_STORAGE_KEY = 'marketpulse-access-token';
 
 export function Register() {
   const navigate = useNavigate();
@@ -21,6 +22,7 @@ export function Register() {
   );
   const [isEmailVerified, setIsEmailVerified] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [errorLoginMessage, setErrorLoginMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
   useEffect(() => {
@@ -111,13 +113,6 @@ export function Register() {
       if (createdUserId && !emailVerified) {
         window.localStorage.setItem(VERIFICATION_USER_STORAGE_KEY, createdUserId);
       }
-
-      setFormData({
-        fullName: '',
-        email: '',
-        phoneNumber: '',
-        password: '',
-      });
     } catch (error) {
       const validationErrors = error.response?.data?.errors;
       const firstValidationError =
@@ -127,17 +122,44 @@ export function Register() {
 
       setErrorMessage(
         firstValidationError ||
-          error.response?.data?.message ||
-          error.message ||
-          'Unable to register right now. Please try again.',
+        error.response?.data?.message ||
+        error.message ||
+        'Unable to register right now. Please try again.',
       );
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleGoToSignIn = () => {
-    navigate(`/get-started/${registeredUserId}`);
+  const loginData = {
+    "email": formData.email,
+    "password": formData.password
+  }
+
+  const handleGoToSignIn = async () => {
+    try {
+      const response = await axios.post(
+        "http://localhost:3000/api/v1/auth/login",
+        loginData,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          withCredentials: true,
+        },
+      )
+      const accessToken = response.data?.data?.accessToken;
+
+      if (accessToken) {
+        window.localStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, accessToken);
+      }
+
+      navigate(`/get-started`);
+    }
+    catch (error) {
+      console.error("Login Error:", error.response?.data || error.message);
+      setErrorLoginMessage(error.response?.data?.message || "Login failed");
+    }
   };
 
   return (
@@ -175,7 +197,7 @@ export function Register() {
           label="Phone Number"
           type="tel"
           name="phoneNumber"
-          placeholder="+91 (555) 987-6543"
+          placeholder="+91 6284022564"
           value={formData.phoneNumber}
           onChange={handleChange}
           required

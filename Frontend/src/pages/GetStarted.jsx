@@ -1,23 +1,25 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { useNavigate, useParams } from 'react-router-dom';
-import { Building2, Check, Globe, ImagePlus, SkipForward } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Building2, Check, Globe, ImagePlus, LocateIcon, SkipForward } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { AuthLayout } from '../components/AuthLayout';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { Avatar, AvatarFallback, AvatarImage } from '../components/Avatar';
 
+const ACCESS_TOKEN_STORAGE_KEY = 'marketpulse-access-token';
+
 const initialFormData = {
   businessName: '',
   description: '',
-  websiteURL: '',
-  profilePictureURL: '',
+  website: '',
+  profilePicture: '',
+  location: ''
 };
 
 export function GetStarted() {
   const navigate = useNavigate();
-  const { userID } = useParams();
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState(initialFormData);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -58,7 +60,7 @@ export function GetStarted() {
     reader.onload = () => {
       setFormData((currentData) => ({
         ...currentData,
-        profilePictureURL: typeof reader.result === 'string' ? reader.result : '',
+        profilePicture: typeof reader.result === 'string' ? reader.result : '',
       }));
       setErrorMessage('');
     };
@@ -72,22 +74,17 @@ export function GetStarted() {
 
   const handleDone = async () => {
     setErrorMessage('');
-
-    if (!userID) {
-      navigate('/trend-command');
-      return;
-    }
-
     setIsSubmitting(true);
 
     try {
+      const accessToken = window.localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY);
+
       await axios.post(
-        `http://localhost:3000/api/v1/auth/set-basic-info/${userID}`,
+        `http://localhost:3000/api/v1/business/set-info`,
         formData,
         {
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          withCredentials: true,
+          headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
         },
       );
 
@@ -107,10 +104,9 @@ export function GetStarted() {
 
   return (
     <AuthLayout
-      title={step === 1 ? 'Tell us about your business' : 'Add your profile picture'}
       subtitle={
         step === 1
-          ? 'Add a few basics so MarketPulse can personalize your workspace from the start.'
+          ? 'Provide us your business details for better experience'
           : 'Upload a profile picture if you want a more complete account setup.'
       }
     >
@@ -119,8 +115,8 @@ export function GetStarted() {
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-emerald-500">
             <span
               className={`flex h-8 w-8 items-center justify-center rounded-full border ${step >= 1
-                  ? 'border-emerald-500/30 bg-emerald-500/15 text-emerald-500'
-                  : 'border-border bg-background text-muted-foreground'
+                ? 'border-emerald-500/30 bg-emerald-500/15 text-emerald-500'
+                : 'border-border bg-background text-muted-foreground'
                 }`}
             >
               1
@@ -131,8 +127,8 @@ export function GetStarted() {
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-emerald-500">
             <span
               className={`flex h-8 w-8 items-center justify-center rounded-full border ${step >= 2
-                  ? 'border-emerald-500/30 bg-emerald-500/15 text-emerald-500'
-                  : 'border-border bg-background text-muted-foreground'
+                ? 'border-emerald-500/30 bg-emerald-500/15 text-emerald-500'
+                : 'border-border bg-background text-muted-foreground'
                 }`}
             >
               2
@@ -142,98 +138,116 @@ export function GetStarted() {
         </div>
 
         {step === 1 ? (
-          <motion.div
-            initial={{ opacity: 0, y: 18 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.25 }}
-            className="space-y-5"
-          >
-            <div className="space-y-2">
-              <label
-                htmlFor="businessName"
-                className="text-sm font-medium text-foreground"
-              >
-                Business Name
-              </label>
-              <div className="relative">
-                <Building2 className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  id="businessName"
-                  name="businessName"
-                  value={formData.businessName}
+          <form onSubmit={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            handleNext();
+          }}>
+            <motion.div
+              initial={{ opacity: 0, y: 18 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.25 }}
+              className="space-y-5"
+            >
+              <div className="space-y-2">
+                <label
+                  htmlFor="businessName"
+                  className="text-sm font-medium text-foreground"
+                >
+                  Business Name
+                </label>
+                <div className="relative">
+                  <Building2 className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    id="businessName"
+                    name="businessName"
+                    value={formData.businessName}
+                    onChange={handleInputChange}
+                    placeholder="Northwind Retail"
+                    className="h-12 rounded-2xl border-border bg-background/80 pl-11"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label
+                  htmlFor="description"
+                  className="text-sm font-medium text-foreground"
+                >
+                  Description
+                </label>
+                <textarea
+                  required
+                  id="description"
+                  name="description"
+                  rows={5}
+                  value={formData.description}
                   onChange={handleInputChange}
-                  placeholder="Northwind Retail"
-                  className="h-12 rounded-2xl border-border bg-background/80 pl-11"
+                  placeholder="Tell us what your business does, who you serve, or what you sell."
+                  className="w-full rounded-xl border border-white/10 bg-transparent px-4 py-3 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
                 />
               </div>
-            </div>
 
-            <div className="space-y-2">
-              <label
-                htmlFor="description"
-                className="text-sm font-medium text-foreground"
-              >
-                Description
-              </label>
-              <textarea
-                id="description"
-                name="description"
-                rows={5}
-                value={formData.description}
-                onChange={handleInputChange}
-                placeholder="Tell us what your business does, who you serve, or what you sell."
-                className="w-full rounded-xl border border-white/10 bg-transparent px-4 py-3 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label
-                htmlFor="websiteURL"
-                className="text-sm font-medium text-foreground"
-              >
-                Website
-              </label>
-              <div className="relative">
-                <Globe className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  id="websiteURL"
-                  name="websiteURL"
-                  type="url"
-                  value={formData.websiteURL}
-                  onChange={handleInputChange}
-                  placeholder="https://yourbusiness.com"
-                  className="h-12 rounded-2xl border-border bg-background/80 pl-11"
-                />
+              <div className="space-y-2">
+                <label
+                  htmlFor="website"
+                  className="text-sm font-medium text-foreground"
+                >
+                  Website
+                </label>
+                <div className="relative">
+                  <Globe className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    id="website"
+                    name="website"
+                    type="url"
+                    value={formData.website}
+                    onChange={handleInputChange}
+                    placeholder="https://yourbusiness.com"
+                    className="h-12 rounded-2xl border-border bg-background/80 pl-11"
+                  />
+                </div>
               </div>
-            </div>
 
-            {errorMessage ? (
-              <p className="text-sm text-red-500" aria-live="polite">
-                {errorMessage}
-              </p>
-            ) : null}
+              <div className="space-y-2">
+                <label
+                  htmlFor="location"
+                  className="text-sm font-medium text-foreground"
+                >
+                  Location
+                </label>
+                <div className="relative">
+                  <LocateIcon className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    id="location"
+                    name="location"
+                    type="text"
+                    value={formData.location}
+                    onChange={handleInputChange}
+                    placeholder="Ludhiana , Punjab"
+                    className="h-12 rounded-2xl border-border bg-background/80 pl-11"
+                  />
+                </div>
+              </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <Button
-                type="button"
-                variant="outline"
-                size="lg"
-                onClick={handleSkip}
-                className="h-12 rounded-2xl text-base font-semibold"
-              >
-                <SkipForward className="h-4 w-4" />
-                Skip
-              </Button>
-              <Button
-                type="button"
-                size="lg"
-                onClick={handleNext}
-                className="h-12 rounded-2xl bg-emerald-500 text-base font-semibold text-white hover:bg-emerald-600"
-              >
-                Next
-              </Button>
-            </div>
-          </motion.div>
+              {errorMessage ? (
+                <p className="text-sm text-red-500" aria-live="polite">
+                  {errorMessage}
+                </p>
+              ) : null}
+
+              <div className="grid grid-cols-1 gap-3">
+                <Button
+                  type="submit"
+                  size="lg"
+                  className="h-12 rounded-2xl bg-emerald-500 text-base font-semibold text-white hover:bg-emerald-600"
+                >
+                  Next
+                </Button>
+              </div>
+            </motion.div>
+          </form>
         ) : (
           <motion.div
             initial={{ opacity: 0, y: 18 }}
@@ -244,7 +258,7 @@ export function GetStarted() {
             <div className="rounded-[1.75rem] border border-border bg-background/70 p-6">
               <div className="flex flex-col items-center gap-4 text-center">
                 <Avatar size="lg" className="h-24 w-24 border border-border shadow-sm">
-                  <AvatarImage src={formData.profilePictureURL} alt="Profile preview" />
+                  <AvatarImage src={formData.profilePicture} alt="Profile preview" />
                   <AvatarFallback className="bg-emerald-500/15 text-lg font-semibold text-emerald-500">
                     {previewFallback}
                   </AvatarFallback>

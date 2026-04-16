@@ -72,7 +72,7 @@ function AppRouter() {
     <Route path="/forgotPassword" element={<ForgotPassword />} />
     <Route path="/reset-password/:token" element={<ResetPassword />} />
     <Route path="/verify-email/:emailVerificationToken" element={<EmailVerification />} />
-    <Route path="/get-started/:userID" element={<GetStarted />} />
+    <Route path="/get-started" element={<GetStarted />} />
     <Route path="/*" element={<AppLayout />} />
   </Routes>;
 }
