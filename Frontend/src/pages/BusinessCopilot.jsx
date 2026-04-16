@@ -1,342 +1,291 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Brain, Send, Sparkles, TrendingUp, Users, Target, BarChart3, Lightbulb, RefreshCw } from 'lucide-react';
+import {
+  BarChart3,
+  Brain,
+  Lightbulb,
+  Loader2,
+  RefreshCw,
+  Send,
+  Sparkles,
+  Target,
+  TrendingUp,
+  Users,
+} from 'lucide-react';
 import { Button } from '../components/Button';
 import { Avatar, AvatarFallback } from '../components/Avatar';
-const suggestions = [{
-        label: 'How can I increase my sales this quarter?',
-        icon: TrendingUp
-    }, {
-        label: 'Analyze my top-performing products',
-        icon: BarChart3
-    }, {
-        label: 'Customer retention strategies',
-        icon: Users
-    }, {
-        label: 'How to reduce dead stock?',
-        icon: Target
-    }, {
-        label: 'Marketing ideas for small retail',
-        icon: Lightbulb
-    }, {
-        label: 'Pricing strategy recommendations',
-        icon: Sparkles
-    }];
-const mockResponses = {
-    'How can I increase my sales this quarter?': `Great question! Based on your current store data, here are some actionable strategies to boost sales this quarter:
 
-**1. Leverage Trending Products**
-Your Cargo Pants (+45%) and Bucket Hats (+71%) are seeing strong demand. Consider increasing stock and running targeted promotions on these items.
+const COPILOT_API_URL = 'http://localhost:3000/api/v1/ai/copilot';
+const ACCESS_TOKEN_STORAGE_KEY = 'marketpulse-access-token';
 
-**2. Bundle Deals**
-Create product bundles combining high-demand items with slower movers. For example, pair Oversized Tees with Crossbody Bags at a 15% discount.
+const starterPrompts = [
+  { label: 'How can I increase my sales this quarter?', icon: TrendingUp },
+  { label: 'Analyze my top-performing products', icon: BarChart3 },
+  { label: 'Customer retention strategies', icon: Users },
+  { label: 'How to reduce dead stock?', icon: Target },
+  { label: 'Marketing ideas for small retail', icon: Lightbulb },
+  { label: 'Pricing strategy recommendations', icon: Sparkles },
+];
 
-**3. Seasonal Campaigns**
-Launch a "Summer Essentials" campaign featuring your Linen Shirts and Canvas Sneakers. Use social media ads targeting your local demographic.
+const createMessage = (role, content, id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`) => ({
+  id,
+  role,
+  content,
+  timestamp: new Date(),
+});
 
-**4. Loyalty Program**
-Implement a points-based loyalty program. Data shows retailers see a 20-30% increase in repeat purchases with well-structured rewards.
+const createWelcomeMessage = () =>
+  createMessage(
+    'assistant',
+    "Hi! I'm your Business Copilot. Ask about sales, pricing, inventory, or growth decisions, and I'll reply using your live business data.",
+    'welcome'
+  );
 
-**5. Optimize Pricing**
-Your Profit Margin is at 23.5%. Consider a small price increase (3-5%) on high-demand items — customers are less price-sensitive on trending products.
-
-Would you like me to dive deeper into any of these strategies?`,
-    'Analyze my top-performing products': `Here's an analysis of your top-performing products based on current market data:
-
-**🏆 Top Performers:**
-
-| Product | Demand Growth | Stock Status |
-|---------|--------------|--------------|
-| Bucket Hats | +71% | ⚠️ Out of Stock |
-| Oversized Tees | +62% | ✅ Overstocked |
-| Graphic Hoodies | +56% | ❌ Out of Stock |
-| Crossbody Bags | +53% | ⚠️ Low Stock |
-
-**Key Insights:**
-- Your fastest-growing items (Bucket Hats, Graphic Hoodies) are out of stock — you're leaving significant revenue on the table.
-- Oversized Tees are overstocked but still trending. Consider running a flash sale to optimize inventory.
-- Crossbody Bags need immediate reorder to capitalize on the +53% demand surge.
-
-**Recommended Actions:**
-1. Emergency reorder for Bucket Hats and Graphic Hoodies
-2. Allocate marketing budget to Crossbody Bags before stock runs out
-3. Create an "Oversized Tees" promotion to balance inventory
-
-Shall I help you create a reorder plan?`,
-    'Customer retention strategies': `Here are proven customer retention strategies tailored for retail businesses:
-
-**1. Personalized Communication**
-- Send targeted emails based on purchase history
-- Birthday discounts and anniversary offers
-- "We miss you" campaigns for inactive customers (30+ days)
-
-**2. Post-Purchase Experience**
-- Handwritten thank-you notes with orders
-- Follow-up emails asking for feedback
-- Surprise upgrades or free samples
-
-**3. Community Building**
-- Create a VIP customer group on social media
-- Host exclusive early-access sales events
-- Share behind-the-scenes content about your products
-
-**4. Data-Driven Approach**
-- Track customer lifetime value (CLV)
-- Identify at-risk customers before they churn
-- A/B test different retention offers
-
-**5. Subscription Model**
-- Offer a monthly "style box" subscription
-- Provide subscriber-only discounts
-- Create a predictable revenue stream
-
-**Industry Benchmark:** Top retail businesses retain 60-70% of customers. Would you like me to help you set up a retention tracking system?`,
-    default: `That's a great area to explore! Based on my analysis of your business data and current market trends, here are some insights:
-
-**Market Overview:**
-Your store is performing well with a 23.5% profit margin and $12,426 in daily sales. However, there are opportunities to optimize:
-
-- **Inventory Health:** You have $3,200 in dead stock that could be liquidated through flash sales or bundle deals
-- **Demand Gaps:** Several trending products are out of stock, representing missed revenue
-- **Growth Potential:** Your market demand forecast shows consistent upward trajectory
-
-**Recommendations:**
-1. Focus on restocking high-demand items immediately
-2. Implement dynamic pricing for trending products
-3. Consider expanding into adjacent product categories
-4. Invest in digital marketing for your top performers
-
-Would you like me to elaborate on any of these points or explore a different aspect of your business?`
+const getRequestConfig = () => {
+  const accessToken = window.localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY);
+  return {
+    withCredentials: true,
+    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+  };
 };
+
+// Updated to match your exact backend response
+const getCopilotReply = (response) => response?.data?.data?.responseMessage?.trim() || '';
+
+const getErrorReply = (error) => {
+  if (error?.response?.status === 401) {
+    return 'Your session has expired. Please log in again and retry your question.';
+  }
+  return error?.response?.data?.message || 'I could not reach the business copilot right now. Please try again.';
+};
+
+const renderAssistantContent = (content) => (
+  <div className="whitespace-pre-wrap">
+    {content.split('\n').map((line, index) => {
+      if (!line) return <div key={index} className="h-2" />;
+      if (line.startsWith('**') && line.endsWith('**')) {
+        return (
+          <p key={index} className="mb-1 mt-2 font-semibold">
+            {line.replace(/\*\*/g, '')}
+          </p>
+        );
+      }
+      if (line.startsWith('|')) {
+        return (
+          <p key={index} className="font-mono text-xs text-muted-foreground">
+            {line}
+          </p>
+        );
+      }
+      if (/^\d+\./.test(line)) {
+        return <p key={index} className="my-0.5 ml-2">{line}</p>;
+      }
+      if (line.startsWith('- ')) {
+        return <p key={index} className="my-0.5 ml-4">{line}</p>;
+      }
+      return <p key={index}>{line}</p>;
+    })}
+  </div>
+);
+
 export function BusinessCopilot() {
-    const [messages, setMessages] = useState([{
-            id: 'welcome',
-            role: 'assistant',
-            content: "👋 Hi! I'm your Business Copilot — an AI research assistant designed to help you grow your retail business. Ask me anything about sales strategies, market trends, inventory optimization, or customer insights. What would you like to explore today?",
-            timestamp: new Date()
-        }]);
-    const [input, setInput] = useState('');
-    const [isTyping, setIsTyping] = useState(false);
-    const messagesEndRef = useRef(null);
-    const inputRef = useRef(null);
-    const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({
-            behavior: 'smooth'
-        });
-    };
-    useEffect(() => {
-        scrollToBottom();
-    }, [messages, isTyping]);
-    const sendMessage = (text) => {
-        if (!text.trim())
-            return;
-        const userMsg = {
-            id: Date.now().toString(),
-            role: 'user',
-            content: text.trim(),
-            timestamp: new Date()
-        };
-        setMessages((prev) => [...prev, userMsg]);
-        setInput('');
-        setIsTyping(true);
-        // Simulate AI response
-        setTimeout(() => {
-            const response = mockResponses[text.trim()] || mockResponses['default'];
-            const aiMsg = {
-                id: (Date.now() + 1).toString(),
-                role: 'assistant',
-                content: response,
-                timestamp: new Date()
-            };
-            setMessages((prev) => [...prev, aiMsg]);
-            setIsTyping(false);
-        }, 1200 + Math.random() * 800);
-    };
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        sendMessage(input);
-    };
-    const handleSuggestion = (label) => {
-        sendMessage(label);
-    };
-    const handleNewChat = () => {
-        setMessages([{
-                id: 'welcome',
-                role: 'assistant',
-                content: "👋 Hi! I'm your Business Copilot — an AI research assistant designed to help you grow your retail business. Ask me anything about sales strategies, market trends, inventory optimization, or customer insights. What would you like to explore today?",
-                timestamp: new Date()
-            }]);
-        setInput('');
-        inputRef.current?.focus();
-    };
-    const showSuggestions = messages.length <= 1 && !isTyping;
-    return <div className="flex flex-col h-[calc(100vh-8rem)]">
-      {/* Header */}
-      <motion.div initial={{
-            opacity: 0,
-            y: 20
-        }} animate={{
-            opacity: 1,
-            y: 0
-        }} transition={{
-            duration: 0.4
-        }} className="flex items-center justify-between mb-4 flex-shrink-0">
+  const [messages, setMessages] = useState([createWelcomeMessage()]);
+  const [input, setInput] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
+  const messagesEndRef = useRef(null);
+  const inputRef = useRef(null);
+  const chatSessionRef = useRef(0);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, isTyping]);
+
+  const sendMessage = async (rawText) => {
+    const trimmedPrompt = rawText.trim();
+    if (!trimmedPrompt || isTyping) return;
+
+    const sessionId = chatSessionRef.current;
+    const userMessage = createMessage('user', trimmedPrompt);
+
+    setMessages((prev) => [...prev, userMessage]);
+    setInput('');
+    setIsTyping(true);
+
+    try {
+      const response = await axios.post(
+        COPILOT_API_URL,
+        { prompt: trimmedPrompt },
+        getRequestConfig()
+      );
+
+      if (chatSessionRef.current !== sessionId) return;
+
+      const reply = getCopilotReply(response) || 'I received your request, but there was no reply from the copilot.';
+
+      setMessages((prev) => [...prev, createMessage('assistant', reply)]);
+    } catch (error) {
+      if (chatSessionRef.current !== sessionId) return;
+      setMessages((prev) => [...prev, createMessage('assistant', getErrorReply(error))]);
+    } finally {
+      if (chatSessionRef.current === sessionId) setIsTyping(false);
+    }
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    sendMessage(input);
+  };
+
+  const handleSuggestion = (label) => sendMessage(label);
+
+  const handleNewChat = () => {
+    chatSessionRef.current += 1;
+    setMessages([createWelcomeMessage()]);
+    setInput('');
+    setIsTyping(false);
+    inputRef.current?.focus();
+  };
+
+  const showSuggestions = messages.length === 1 && !isTyping;
+
+  return (
+    <div className="flex h-[calc(100vh-8rem)] flex-col">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        className="mb-4 flex shrink-0 items-center justify-between"
+      >
         <div>
-          <h1 className="text-3xl font-bold text-foreground">
-            Business Copilot
-          </h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            AI-powered research assistant to help grow your business
+          <h1 className="text-3xl font-bold text-foreground">Business Copilot</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Ask questions about inventory, pricing, sales, and business decisions.
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={handleNewChat} className="gap-2 rounded-xl border-border">
-          <RefreshCw className="w-4 h-4"/>
+          <RefreshCw className="h-4 w-4" />
           New Chat
         </Button>
       </motion.div>
 
-      {/* Chat Area */}
-      <motion.div initial={{
-            opacity: 0,
-            y: 20
-        }} animate={{
-            opacity: 1,
-            y: 0
-        }} transition={{
-            duration: 0.4,
-            delay: 0.1
-        }} className="flex-1 bg-card border border-border rounded-2xl flex flex-col overflow-hidden transition-colors duration-300">
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-hide">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.1 }}
+        className="flex flex-1 flex-col overflow-hidden rounded-2xl border border-border bg-card transition-colors duration-300"
+      >
+        <div className="scrollbar-hide flex-1 space-y-6 overflow-y-auto p-6">
           <AnimatePresence initial={false}>
-            {messages.map((msg) => <motion.div key={msg.id} initial={{
-                opacity: 0,
-                y: 10
-            }} animate={{
-                opacity: 1,
-                y: 0
-            }} transition={{
-                duration: 0.3
-            }} className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                {/* Avatar */}
-                {msg.role === 'assistant' ? <div className="flex-shrink-0 w-8 h-8 rounded-xl bg-emerald-500/15 flex items-center justify-center">
-                    <Brain className="w-4 h-4 text-emerald-500"/>
-                  </div> : <Avatar size="sm">
-                    <AvatarFallback className="bg-blue-500/15 text-blue-600 dark:text-blue-400 text-xs font-semibold rounded-xl">
+            {messages.map((message) => (
+              <motion.div
+                key={message.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+                className={`flex gap-3 ${message.role === 'user' ? 'flex-row-reverse' : ''}`}
+              >
+                {message.role === 'assistant' ? (
+                  <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-500/15">
+                    <Brain className="h-4 w-4 text-emerald-500" />
+                  </div>
+                ) : (
+                  <Avatar size="sm">
+                    <AvatarFallback className="rounded-xl bg-blue-500/15 text-xs font-semibold text-blue-600 dark:text-blue-400">
                       You
                     </AvatarFallback>
-                  </Avatar>}
+                  </Avatar>
+                )}
 
-                {/* Message Bubble */}
-                <div className={`max-w-[75%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${msg.role === 'user' ? 'bg-emerald-500 text-white rounded-tr-md' : 'bg-secondary text-foreground rounded-tl-md'}`}>
-                  {msg.role === 'assistant' ? <div className="whitespace-pre-wrap">
-                      {msg.content.split('\n').map((line, i) => {
-                    if (line.startsWith('**') && line.endsWith('**')) {
-                        return <p key={i} className="font-semibold mt-2 mb-1">
-                              {line.replace(/\*\*/g, '')}
-                            </p>;
-                    }
-                    if (line.startsWith('| ')) {
-                        return <p key={i} className="font-mono text-xs text-muted-foreground">
-                              {line}
-                            </p>;
-                    }
-                    if (line.match(/^\d+\./)) {
-                        return <p key={i} className="ml-2 my-0.5">
-                              {line}
-                            </p>;
-                    }
-                    if (line.startsWith('- ')) {
-                        return <p key={i} className="ml-4 my-0.5">
-                              {line}
-                            </p>;
-                    }
-                    return <p key={i} className={line === '' ? 'h-2' : ''}>
-                            {line}
-                          </p>;
-                })}
-                    </div> : <p>{msg.content}</p>}
-                  <p className={`text-[10px] mt-2 ${msg.role === 'user' ? 'text-white/60' : 'text-muted-foreground'}`}>
-                    {msg.timestamp.toLocaleTimeString([], {
-                hour: '2-digit',
-                minute: '2-digit'
-            })}
+                <div
+                  className={`max-w-[75%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+                    message.role === 'user'
+                      ? 'rounded-tr-md bg-emerald-500 text-white'
+                      : 'rounded-tl-md bg-secondary text-foreground'
+                  }`}
+                >
+                  {message.role === 'assistant' ? renderAssistantContent(message.content) : <p>{message.content}</p>}
+                  <p
+                    className={`mt-2 text-[10px] ${message.role === 'user' ? 'text-white/60' : 'text-muted-foreground'}`}
+                  >
+                    {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </p>
                 </div>
-              </motion.div>)}
+              </motion.div>
+            ))}
           </AnimatePresence>
 
-          {/* Typing Indicator */}
-          {isTyping && <motion.div initial={{
-                opacity: 0,
-                y: 10
-            }} animate={{
-                opacity: 1,
-                y: 0
-            }} className="flex gap-3">
-              <div className="flex-shrink-0 w-8 h-8 rounded-xl bg-emerald-500/15 flex items-center justify-center">
-                <Brain className="w-4 h-4 text-emerald-500"/>
+          {isTyping && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex gap-3">
+              <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-500/15">
+                <Brain className="h-4 w-4 text-emerald-500" />
               </div>
-              <div className="bg-secondary rounded-2xl rounded-tl-md px-4 py-3">
+              <div className="rounded-2xl rounded-tl-md bg-secondary px-4 py-3">
                 <div className="flex gap-1.5">
-                  <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{
-                animationDelay: '0ms'
-            }}/>
-                  <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{
-                animationDelay: '150ms'
-            }}/>
-                  <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{
-                animationDelay: '300ms'
-            }}/>
+                  <span className="h-2 w-2 animate-bounce rounded-full bg-muted-foreground/50" />
+                  <span className="h-2 w-2 animate-bounce rounded-full bg-muted-foreground/50" style={{ animationDelay: '150ms' }} />
+                  <span className="h-2 w-2 animate-bounce rounded-full bg-muted-foreground/50" style={{ animationDelay: '300ms' }} />
                 </div>
               </div>
-            </motion.div>}
+            </motion.div>
+          )}
 
-          <div ref={messagesEndRef}/>
+          <div ref={messagesEndRef} />
         </div>
 
-        {/* Suggestions + Input */}
-        <div className="border-t border-border p-4 flex-shrink-0">
-          {/* Suggestion Bubbles */}
+        <div className="flex-shrink-0 border-t border-border p-4">
           <AnimatePresence>
-            {showSuggestions && <motion.div initial={{
-                opacity: 0,
-                y: 10
-            }} animate={{
-                opacity: 1,
-                y: 0
-            }} exit={{
-                opacity: 0,
-                y: 10
-            }} transition={{
-                duration: 0.3
-            }} className="flex flex-wrap gap-2 mb-3">
-                {suggestions.map((s, i) => <motion.button key={s.label} initial={{
-                    opacity: 0,
-                    scale: 0.9
-                }} animate={{
-                    opacity: 1,
-                    scale: 1
-                }} transition={{
-                    duration: 0.2,
-                    delay: i * 0.05
-                }} onClick={() => handleSuggestion(s.label)} className="inline-flex items-center gap-2 px-3 py-2 text-xs font-medium text-muted-foreground bg-secondary hover:bg-muted hover:text-foreground border border-border rounded-xl transition-all duration-200 hover:border-emerald-500/30 hover:shadow-sm">
-                    <s.icon className="w-3.5 h-3.5 text-emerald-500"/>
-                    {s.label}
-                  </motion.button>)}
-              </motion.div>}
+            {showSuggestions && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                className="mb-3 flex flex-wrap gap-2"
+              >
+                {starterPrompts.map((suggestion, index) => (
+                  <motion.button
+                    key={suggestion.label}
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.2, delay: index * 0.05 }}
+                    onClick={() => handleSuggestion(suggestion.label)}
+                    disabled={isTyping}
+                    className="inline-flex items-center gap-2 rounded-xl border border-border bg-secondary px-3 py-2 text-xs font-medium text-muted-foreground transition-all hover:border-emerald-500/30 hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <suggestion.icon className="h-3.5 w-3.5 text-emerald-500" />
+                    {suggestion.label}
+                  </motion.button>
+                ))}
+              </motion.div>
+            )}
           </AnimatePresence>
 
-          {/* Input Field */}
           <form onSubmit={handleSubmit} className="flex items-center gap-3">
             <div className="relative flex-1">
-              <input ref={inputRef} type="text" value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask about sales strategies, market trends, growth ideas..." className="w-full bg-secondary border border-border rounded-xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500/40 transition-all" disabled={isTyping}/>
+              <input
+                ref={inputRef}
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Ask about sales strategies, market trends, growth ideas..."
+                className="w-full rounded-xl border border-border bg-secondary px-4 py-3 text-sm text-foreground transition-all placeholder:text-muted-foreground focus:border-emerald-500/40 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+                disabled={isTyping}
+              />
             </div>
-            <Button type="submit" disabled={!input.trim() || isTyping} className="rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white px-4 h-[46px] disabled:opacity-40">
-              <Send className="w-4 h-4"/>
+            <Button
+              type="submit"
+              disabled={!input.trim() || isTyping}
+              className="h-[46px] rounded-xl bg-emerald-500 px-4 text-white hover:bg-emerald-600 disabled:opacity-40"
+            >
+              {isTyping ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             </Button>
           </form>
         </div>
       </motion.div>
-    </div>;
+    </div>
+  );
 }

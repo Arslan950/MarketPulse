@@ -6,6 +6,7 @@ import authRouter from './routes/auth.route.js'
 import productRouter from "./routes/product.route.js";
 import procurementRouter from "./routes/procurement.route.js";
 import businessRouter from "./routes/business.route.js";
+import aiRouter from "./routes/ai.route.js"
 
 const app = express();
 
@@ -25,7 +26,8 @@ app.use("/api/v1/healthcheck" , healthCheckRouter);
 app.use("/api/v1/auth",authRouter);
 app.use("/api/v1/inventory",productRouter);
 app.use("/api/v1/catalog",procurementRouter);
-app.use("/api/v1/business",businessRouter)
+app.use("/api/v1/business",businessRouter);
+app.use("/api/v1/ai",aiRouter)
 
 app.get("/", (req, res) => {
     res.send("Hello world");

@@ -88,20 +88,16 @@ const businessSetupValidator = () => {
             .trim()
             .notEmpty()
             .withMessage("Business description is required")
-            .isLength({ min: 10 })
+            .isLength({ min: 4 })
             .withMessage("Description should be at least 10 characters to be useful for the LLM"),
 
         body("website")
             .optional({ checkFalsy: true })
-            .trim()
-            .isURL({ require_protocol: true })
-            .withMessage("Website must be a valid URL including http:// or https://"),
+            .trim(),
 
         body("profilePicture")
             .optional({ checkFalsy: true })
-            .trim()
-            .isURL()
-            .withMessage("Profile picture must be a valid URL"),
+            .trim(),
         
         body("location")
             .optional({ checkFalsy: true })
