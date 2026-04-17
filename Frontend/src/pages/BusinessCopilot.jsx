@@ -17,6 +17,7 @@ import { Button } from '../components/Button';
 import { Avatar, AvatarFallback } from '../components/Avatar';
 
 const COPILOT_API_URL = 'http://localhost:3000/api/v1/ai/copilot';
+const COPILOT_NEWCHAt_API_URL = 'http://localhost:3000/api/v1/ai/new-chat';
 const ACCESS_TOKEN_STORAGE_KEY = 'marketpulse-access-token';
 
 const starterPrompts = [
@@ -90,7 +91,7 @@ const renderAssistantContent = (content) => (
 );
 
 export function BusinessCopilot() {
-  const [messages, setMessages] = useState([createWelcomeMessage()]);
+  const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef(null);
@@ -143,12 +144,30 @@ export function BusinessCopilot() {
 
   const handleSuggestion = (label) => sendMessage(label);
 
-  const handleNewChat = () => {
-    chatSessionRef.current += 1;
-    setMessages([createWelcomeMessage()]);
-    setInput('');
-    setIsTyping(false);
-    inputRef.current?.focus();
+  const handleNewChat = async () => {
+    try {
+      await axios.get(
+        COPILOT_NEWCHAt_API_URL,
+        getRequestConfig(),
+      );
+
+      chatSessionRef.current += 1;
+      setMessages([createWelcomeMessage()]);
+      setInput('');
+      setIsTyping(false);
+      inputRef.current?.focus();
+    } catch (error) {
+      console.error('Failed to clear conversation history:', error);
+
+      setIsTyping(false);
+      
+      setMessages((prev) => [
+        ...prev, 
+        createMessage('assistant', getErrorReply(error))
+      ]);
+      
+      scrollToBottom();
+    }
   };
 
   const showSuggestions = messages.length === 1 && !isTyping;
@@ -202,11 +221,10 @@ export function BusinessCopilot() {
                 )}
 
                 <div
-                  className={`max-w-[75%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
-                    message.role === 'user'
+                  className={`max-w-[75%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${message.role === 'user'
                       ? 'rounded-tr-md bg-emerald-500 text-white'
                       : 'rounded-tl-md bg-secondary text-foreground'
-                  }`}
+                    }`}
                 >
                   {message.role === 'assistant' ? renderAssistantContent(message.content) : <p>{message.content}</p>}
                   <p

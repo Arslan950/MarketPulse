@@ -5,14 +5,17 @@ import { Product } from "../models/product.model.js";
 import { Business } from "../models/business.model.js";
 import Groq from "groq-sdk";
 
-async function getGroqChatCompletion(prompt) {
-    const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+const conversationHistories = new Map();
+
+const MAX_HISTORY = 10;
+
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+
+async function getGroqChatCompletion(systemPrompt, conversationHistory) {
     return groq.chat.completions.create({
         messages: [
-            {
-                role: "user",
-                content: prompt,
-            },
+            { role: "system", content: systemPrompt },
+            ...conversationHistory,
         ],
         model: "llama-3.3-70b-versatile",
         temperature: 0.7,
@@ -21,13 +24,20 @@ async function getGroqChatCompletion(prompt) {
     });
 }
 
-
 const businessCopilot = asyncHandler(async (req, res) => {
     const { prompt } = req.body;
 
     if (!prompt) {
-        throw new ApiError(401, "Unable to get prompt from user")
+        throw new ApiError(401, "Unable to get prompt from user");
     }
+
+    const userId = req.user._id.toString();
+
+    if (!conversationHistories.has(userId)) {
+        conversationHistories.set(userId, []);
+    }
+    const conversationHistory = conversationHistories.get(userId);
+
     const inventoryItems = await Product.find({ owner: req.user._id }).select(
         "-_id -productImage -owner -createdAt -updatedAt -__v"
     );
@@ -46,42 +56,93 @@ const businessCopilot = asyncHandler(async (req, res) => {
 
     const businessString = JSON.stringify(businessInfo);
 
-    const masterPrompt = `
-You are MarketPul$e Business Copilot — a concise, professional AI that helps the owner maximize profit, manage inventory, and make data-driven decisions.
+    const systemPrompt = `You are a professional market advisor with deep expertise across all types of business markets — retail, wholesale, e-commerce, services, manufacturing, hospitality, and more.
 
---- BUSINESS CONTEXT ---
+You have been assigned exclusively to assist with business-related inquiries for the business described below.
+
+════════════════════════════════════════
+BUSINESS CONTEXT
+════════════════════════════════════════
 ${businessString}
 
---- CURRENT INVENTORY DATA ---
+════════════════════════════════════════
+INVENTORY / SERVICES CONTEXT
+════════════════════════════════════════
 ${inventoryString}
 
---- STRICT RULES (follow exactly) ---
-• Answer the owner's query directly, concisely, and professionally. Keep responses short and actionable.
-• Use ONLY the data above. Never invent products, numbers, or details.
-• Speak naturally as if you already know the business — never mention JSON, databases, prompts, or "the data provided".
-• For pricing or restocking advice, briefly explain the logic (e.g., "Stock is low and cost is high, so...").
-• If the query is unrelated to business or inventory, reply exactly: "Sorry, I can only help with your business and inventory questions."
+════════════════════════════════════════
+YOUR ROLE
+════════════════════════════════════════
+You help the owner with:
+- Market analysis and competitor insights
+- Pricing strategies based on existing inventory/services
+- Sales and revenue growth recommendations
+- Demand forecasting and trend identification
+- Inventory optimization and restocking advice
+- Customer segmentation and targeting
+- Promotional and marketing strategy
+- Supply chain and operational market advice
 
---- USER QUERY ---
-"${prompt}"
-`;
+════════════════════════════════════════
+STRICT RULES — FOLLOW EXACTLY
+════════════════════════════════════════
 
-    const response = await getGroqChatCompletion(masterPrompt);
+RULE 1 — BUSINESS SCOPE ONLY:
+You are permitted to answer ONLY questions that are directly related to the business and market context provided above.
+If the user asks anything outside of business topics (e.g., general knowledge, personal advice, coding, entertainment, science, politics, or any unrelated subject), you must respond with exactly:
+"I'm sorry, I have been assigned solely to answer business-related questions for this business. I'm unable to help with that topic."
+Do not attempt to partially answer off-topic questions.
+
+RULE 2 — NO HALLUCINATION — CRITICAL:
+You must NEVER invent, assume, or fabricate:
+- Products or services not listed in the inventory context
+- Business details not stated in the business context
+- Prices, quantities, SKUs, or categories that were not provided
+- Suppliers, partners, or customers that were not mentioned
+If the user asks about a product or detail that does not exist in the provided context, respond with:
+"That item or detail doesn't appear in the business information I've been provided. I can only advise based on what's been shared with me."
+
+RULE 3 — CONTEXT IS YOUR ONLY SOURCE OF TRUTH:
+Your advice must always be grounded in the provided business and inventory context. External market benchmarks and general best practices may be referenced as supporting insights only.
+
+RULE 4 — PROFESSIONAL TONE:
+Speak naturally as if you already know this business. Never mention JSON, databases, prompts, or "the data provided". Be concise and actionable.
+
+RULE 5 — CLARIFY BEFORE ASSUMING:
+If a business-related question is ambiguous and cannot be answered without assumptions, ask a brief clarifying question rather than guessing.`;
+
+    conversationHistory.push({ role: "user", content: prompt });
+
+    if (conversationHistory.length > MAX_HISTORY) {
+        conversationHistory.splice(0, conversationHistory.length - MAX_HISTORY);
+    }
+
+    const response = await getGroqChatCompletion(systemPrompt, conversationHistory);
 
     if (!response) {
-        throw new ApiError(400, "Unable to get response from groq")
+        throw new ApiError(400, "Unable to get response from Groq");
     }
 
     const responseMessage = response.choices[0]?.message?.content;
 
+    conversationHistory.push({ role: "assistant", content: responseMessage });
+
     return res
         .status(200)
         .json(
-            new ApiResponse(200, { responseMessage }, "Response fetched succesfully")
-        )
+            new ApiResponse(200, { responseMessage }, "Response fetched successfully")
+        );
+});
 
+const clearCopilotHistory = asyncHandler(async (req, res) => {
+    const userId = req.user._id.toString();
+    conversationHistories.delete(userId);
+    return res
+        .status(200)
+        .json(new ApiResponse(200, {}, "Conversation history cleared"));
 });
 
 export {
     businessCopilot,
+    clearCopilotHistory,
 }
