@@ -15,6 +15,7 @@ import {
   X,
   Loader2,
   Sparkles,
+  MessageSquare,
 } from 'lucide-react';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
@@ -22,6 +23,8 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '.
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '../components/Select';
 
 const INVENTORY_API_URL = 'http://localhost:3000/api/v1/inventory';
+const AI_API_URL = 'http://localhost:3000/api/v1/ai';
+
 const DEFAULT_PRODUCT_IMAGE = `data:image/svg+xml;utf8,${encodeURIComponent(
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><rect width="120" height="120" rx="24" fill="#0f172a"/><path d="M31 37h58a8 8 0 0 1 8 8v30a8 8 0 0 1-8 8H31a8 8 0 0 1-8-8V45a8 8 0 0 1 8-8Z" fill="#111827" stroke="#334155" stroke-width="4"/><path d="M32 74l18-17 14 13 15-19 18 23H32Z" fill="#10b981" opacity=".75"/><circle cx="45" cy="49" r="6" fill="#f8fafc" opacity=".85"/></svg>'
 )}`;
@@ -33,6 +36,7 @@ const EMPTY_FORM = {
   costPrice: '',
   sellingPrice: '',
   stockQuantity: '',
+  userInstruction: '',
 };
 
 const statusConfig = {
@@ -108,6 +112,11 @@ export function StockIntelligence() {
   const [pendingActionId, setPendingActionId] = useState(null);
   const [selectedImageName, setSelectedImageName] = useState('');
   const [viewingImage, setViewingImage] = useState(null);
+
+  // Price suggestion state
+  const [isSuggestingPrice, setIsSuggestingPrice] = useState(false);
+  const [priceSuggestion, setPriceSuggestion] = useState(null);
+  const [priceSuggestionError, setPriceSuggestionError] = useState('');
 
   const fetchInventory = async ({ silent = false } = {}) => {
     if (!silent) setIsLoading(true);
@@ -201,6 +210,8 @@ export function StockIntelligence() {
     setFormError('');
     setIsSubmitting(false);
     setSelectedImageName('');
+    setPriceSuggestion(null);
+    setPriceSuggestionError('');
   };
 
   const openCreatePanel = () => {
@@ -210,6 +221,8 @@ export function StockIntelligence() {
     setPanelMode('create');
     setFormData(EMPTY_FORM);
     setSelectedImageName('');
+    setPriceSuggestion(null);
+    setPriceSuggestionError('');
   };
 
   const openEditPanel = (product) => {
@@ -224,13 +237,21 @@ export function StockIntelligence() {
       costPrice: String(product.costPrice),
       sellingPrice: String(product.sellingPrice),
       stockQuantity: String(product.stockQuantity),
+      userInstruction: '',
     });
     setSelectedImageName(product.productImage === DEFAULT_PRODUCT_IMAGE ? '' : 'Current product image');
+    setPriceSuggestion(null);
+    setPriceSuggestionError('');
   };
 
   const handleFieldChange = (event) => {
     const { name, value } = event.target;
     setFormData((currentFormData) => ({ ...currentFormData, [name]: value }));
+    // Clear price suggestion when cost price changes
+    if (name === 'costPrice') {
+      setPriceSuggestion(null);
+      setPriceSuggestionError('');
+    }
   };
 
   const handleImageUpload = async (event) => {
@@ -258,6 +279,48 @@ export function StockIntelligence() {
       setFormError(error.message || 'Unable to process the selected image.');
     } finally {
       event.target.value = '';
+    }
+  };
+
+  // ─── Price Suggestion Handler ──────────────────────────────────────────────
+  const isSuggestButtonDisabled =
+    !formData.productName.trim() ||
+    !formData.costPrice ||
+    !formData.stockQuantity ||
+    isSuggestingPrice;
+
+  const handleSuggestPrice = async () => {
+    setPriceSuggestion(null);
+    setPriceSuggestionError('');
+    setIsSuggestingPrice(true);
+
+    try {
+      const response = await axios.post(
+        `${AI_API_URL}/price-suggestion`,
+        {
+          productName: formData.productName.trim(),
+          costPrice: Number(formData.costPrice),
+          quantity: Number(formData.stockQuantity),
+          userInstruction: formData.userInstruction.trim() || undefined,
+        },
+        { withCredentials: true }
+      );
+
+      const message = response?.data?.data?.responseMessage ?? '';
+      setPriceSuggestion(message);
+
+      // Auto-fill selling price if we can parse it from response
+      const priceMatch = message.match(/Suggested Price[:\s]+[₹]?\s*([\d,]+)/i);
+      if (priceMatch) {
+        const parsedPrice = priceMatch[1].replace(/,/g, '');
+        setFormData((prev) => ({ ...prev, sellingPrice: parsedPrice }));
+      }
+    } catch (error) {
+      setPriceSuggestionError(
+        error?.response?.data?.message || 'Unable to get price suggestion right now.'
+      );
+    } finally {
+      setIsSuggestingPrice(false);
     }
   };
 
@@ -469,6 +532,7 @@ export function StockIntelligence() {
         </motion.div>
       ) : null}
 
+      {/* Stats */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -526,6 +590,7 @@ export function StockIntelligence() {
         </div>
       </motion.div>
 
+      {/* Filters */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -569,17 +634,17 @@ export function StockIntelligence() {
         </p>
       </motion.div>
 
-      {/* IMPROVED MODAL */}
+      {/* ─── MODAL ──────────────────────────────────────────────────────────── */}
       {panelMode ? (
         <div className="fixed inset-0 z-40 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 15 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             transition={{ duration: 0.25 }}
-            className="w-full max-w-5xl max-h-[90vh] overflow-y-auto border bg-card border-border rounded-2xl shadow-2xl flex flex-col"
+            className="w-full max-w-6xl max-h-[92vh] overflow-y-auto border bg-card border-border rounded-2xl shadow-2xl flex flex-col"
           >
             {/* Modal Header */}
-            <div className="flex flex-col gap-4 border-b border-border p-6 md:flex-row md:items-start md:justify-between sticky top-0 bg-card z-10">
+            <div className="flex items-start justify-between border-b border-border px-6 py-5 sticky top-0 bg-card z-10">
               <div>
                 <p className="text-xs font-semibold tracking-[0.2em] uppercase text-emerald-400/90">
                   {panelMode === 'edit' ? 'Update Inventory Item' : 'Add Inventory Item'}
@@ -590,7 +655,7 @@ export function StockIntelligence() {
                 <p className="mt-1 text-sm text-muted-foreground">
                   {panelMode === 'edit'
                     ? 'Adjust product information and save the changes back to inventory.'
-                    : 'Create a new inventory item using the live backend product endpoint.'}
+                    : 'Create a new inventory item. Use AI to get the best selling price suggestion.'}
                 </p>
               </div>
               <Button
@@ -598,22 +663,26 @@ export function StockIntelligence() {
                 variant="ghost"
                 size="icon-sm"
                 onClick={resetPanel}
-                className="self-start rounded-xl text-muted-foreground hover:bg-secondary/70 hover:text-foreground"
+                className="rounded-xl text-muted-foreground hover:bg-secondary/70 hover:text-foreground mt-1"
               >
                 <X className="w-5 h-5" />
               </Button>
             </div>
 
-            {/* Modal Body */}
-            <form onSubmit={handleSubmit} className="grid gap-6 p-6 lg:grid-cols-[1.4fr,0.9fr]">
-              {/* LEFT COLUMN — Form fields */}
-              <div className="space-y-5">
+            {/* Modal Body — 3-column grid */}
+            <form onSubmit={handleSubmit} className="grid gap-0 lg:grid-cols-[1fr_1px_1fr_1px_360px]">
 
-                {/* Row 1: Product Name + Category */}
-                <div className="grid gap-4 md:grid-cols-2">
+              {/* ── COL 1 : Product Details ── */}
+              <div className="space-y-5 p-6">
+                <p className="text-xs font-semibold tracking-[0.15em] uppercase text-muted-foreground">
+                  Product Details
+                </p>
+
+                {/* Product Name + Category */}
+                <div className="grid gap-4 sm:grid-cols-2">
                   <label className="space-y-2">
                     <span className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">
-                      Product Name
+                      Product Name <span className="text-red-400">*</span>
                     </span>
                     <Input
                       name="productName"
@@ -626,7 +695,7 @@ export function StockIntelligence() {
 
                   <label className="space-y-2">
                     <span className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">
-                      Category
+                      Category <span className="text-red-400">*</span>
                     </span>
                     <Input
                       name="category"
@@ -638,16 +707,16 @@ export function StockIntelligence() {
                   </label>
                 </div>
 
-                {/* Row 2: Product Image Upload */}
+                {/* Product Image Upload */}
                 <div className="space-y-2">
                   <span className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">
-                    Product Image
+                    Product Image <span className="text-red-400">*</span>
                   </span>
-                  <label className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-background/80 px-4 py-6 text-center transition-colors hover:border-emerald-500/40 hover:bg-secondary/40">
-                    <Plus className="w-5 h-5 mb-3 text-emerald-400" />
+                  <label className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-background/80 px-4 py-5 text-center transition-colors hover:border-emerald-500/40 hover:bg-secondary/40">
+                    <Plus className="w-5 h-5 mb-2 text-emerald-400" />
                     <span className="text-sm font-medium text-foreground">Upload product image</span>
                     <span className="mt-1 text-xs text-muted-foreground">
-                      JPG, PNG, WEBP, or GIF up to 4 MB. We convert it to a URL string automatically.
+                      JPG, PNG, WEBP, GIF · up to 4 MB
                     </span>
                     <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
                   </label>
@@ -657,9 +726,7 @@ export function StockIntelligence() {
                       <div>
                         <p className="text-sm font-medium text-foreground">{selectedImageName}</p>
                         <p className="text-xs text-muted-foreground">
-                          {panelMode === 'edit'
-                            ? 'Upload another file to replace the current image.'
-                            : 'Ready to save with this uploaded image.'}
+                          {panelMode === 'edit' ? 'Upload another file to replace.' : 'Ready to save.'}
                         </p>
                       </div>
                       <Button
@@ -667,7 +734,7 @@ export function StockIntelligence() {
                         variant="ghost"
                         size="icon-sm"
                         onClick={() => {
-                          setFormData((currentFormData) => ({ ...currentFormData, productImage: '' }));
+                          setFormData((d) => ({ ...d, productImage: '' }));
                           setSelectedImageName('');
                         }}
                         className="rounded-xl text-muted-foreground hover:bg-secondary hover:text-foreground"
@@ -678,17 +745,17 @@ export function StockIntelligence() {
                   ) : (
                     <p className="text-xs text-muted-foreground">
                       {panelMode === 'edit'
-                        ? 'Upload a new image only if you want to replace the current one.'
-                        : 'An uploaded image is required before saving the product.'}
+                        ? 'Upload a new image only to replace the current one.'
+                        : 'An uploaded image is required before saving.'}
                     </p>
                   )}
                 </div>
 
-                {/* Row 3: Stock Quantity + Cost Price (2-col) */}
-                <div className="grid gap-4 md:grid-cols-2">
+                {/* Stock Quantity + Cost Price */}
+                <div className="grid gap-4 sm:grid-cols-2">
                   <label className="space-y-2">
                     <span className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">
-                      Stock Quantity
+                      Stock Quantity <span className="text-red-400">*</span>
                     </span>
                     <Input
                       type="number"
@@ -704,7 +771,7 @@ export function StockIntelligence() {
 
                   <label className="space-y-2">
                     <span className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">
-                      Cost Price
+                      Cost Price (₹) <span className="text-red-400">*</span>
                     </span>
                     <Input
                       type="number"
@@ -713,41 +780,30 @@ export function StockIntelligence() {
                       name="costPrice"
                       value={formData.costPrice}
                       onChange={handleFieldChange}
-                      placeholder="29.99"
+                      placeholder="0.00"
                       className="h-11 rounded-xl bg-background border-border"
                     />
                   </label>
                 </div>
 
-                {/* Row 4: Selling Price — full width with prominent AI button above */}
+                {/* Selling Price */}
                 <div className="space-y-2">
                   <span className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">
-                    Selling Price
+                    Selling Price (₹) <span className="text-red-400">*</span>
                   </span>
-                  <div className="flex flex-col gap-2">
-                    {/* IMPROVED: Full-width, properly styled AI suggestion button */}
-                    <button
-                      type="button"
-                      onClick={(e) => e.preventDefault()}
-                      className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl
-                        bg-emerald-500/15 border border-emerald-500/30 text-emerald-400
-                        hover:bg-emerald-500/25 hover:border-emerald-500/60 hover:text-emerald-300
-                        active:scale-[0.98] transition-all duration-200 text-sm font-semibold"
-                    >
-                      <Sparkles className="w-4 h-4" />
-                      Suggest best price
-                    </button>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      name="sellingPrice"
-                      value={formData.sellingPrice}
-                      onChange={handleFieldChange}
-                      placeholder="39.99"
-                      className="h-11 rounded-xl bg-background border-border"
-                    />
-                  </div>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    name="sellingPrice"
+                    value={formData.sellingPrice}
+                    onChange={handleFieldChange}
+                    placeholder="0.00"
+                    className="h-11 rounded-xl bg-background border-border"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Use the AI Pricing Assistant on the right to get a smart suggestion.
+                  </p>
                 </div>
 
                 {/* Form error */}
@@ -757,7 +813,7 @@ export function StockIntelligence() {
                   </div>
                 ) : null}
 
-                {/* Form actions */}
+                {/* Actions */}
                 <div className="flex flex-wrap items-center justify-end gap-3 pt-2">
                   <Button
                     type="button"
@@ -782,13 +838,123 @@ export function StockIntelligence() {
                 </div>
               </div>
 
-              {/* RIGHT COLUMN — Live Preview */}
-              <div className="rounded-2xl border border-border bg-background/70 p-4 h-fit">
-                <p className="text-xs font-semibold tracking-[0.2em] uppercase text-muted-foreground">
+              {/* ── Divider ── */}
+              <div className="hidden lg:block bg-border" />
+
+              {/* ── COL 2 : AI Pricing Assistant ── */}
+              <div className="space-y-5 p-6 border-t border-border lg:border-t-0">
+                {/* Header */}
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-lg bg-emerald-500/15">
+                    <Sparkles className="w-4 h-4 text-emerald-400" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold tracking-[0.15em] uppercase text-muted-foreground">
+                      AI Pricing Assistant
+                    </p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      Requires product name, cost price & quantity
+                    </p>
+                  </div>
+                </div>
+
+                {/* Optional instruction */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-1.5">
+                    <MessageSquare className="w-3.5 h-3.5 text-muted-foreground" />
+                    <span className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">
+                      Special Instruction
+                      <span className="ml-1.5 text-[10px] font-normal normal-case text-muted-foreground/60">
+                        optional
+                      </span>
+                    </span>
+                  </div>
+                  <textarea
+                    name="userInstruction"
+                    value={formData.userInstruction}
+                    onChange={handleFieldChange}
+                    placeholder="e.g. Target premium customers, aggressive pricing, festive discount, etc."
+                    rows={3}
+                    className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500/50 transition-colors"
+                  />
+                </div>
+
+                {/* Suggest button */}
+                <button
+                  type="button"
+                  onClick={handleSuggestPrice}
+                  disabled={isSuggestButtonDisabled}
+                  className={`flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl
+                    border text-sm font-semibold transition-all duration-200
+                    ${isSuggestButtonDisabled
+                      ? 'bg-muted/30 border-border text-muted-foreground/40 cursor-not-allowed'
+                      : 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/25 hover:border-emerald-500/60 hover:text-emerald-300 active:scale-[0.98]'
+                    }`}
+                >
+                  {isSuggestingPrice ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Analysing market...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-4 h-4" />
+                      Suggest best price
+                    </>
+                  )}
+                </button>
+
+                {/* Disabled hint */}
+                {isSuggestButtonDisabled && !isSuggestingPrice && (
+                  <p className="text-xs text-muted-foreground/60 text-center -mt-2">
+                    Fill in product name, cost price, and quantity to enable
+                  </p>
+                )}
+
+                {/* Suggestion result */}
+                {priceSuggestion && !priceSuggestionError && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="rounded-xl border border-emerald-500/20 bg-emerald-500/8 p-4 space-y-3"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                      <p className="text-xs font-semibold text-emerald-400 uppercase tracking-wider">
+                        AI Suggestion
+                      </p>
+                    </div>
+                    <p className="text-sm text-foreground leading-relaxed whitespace-pre-line">
+                      {priceSuggestion}
+                    </p>
+                    <p className="text-[11px] text-emerald-400/70">
+                      ✓ Selling price field has been auto-filled
+                    </p>
+                  </motion.div>
+                )}
+
+                {/* Suggestion error */}
+                {priceSuggestionError && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400"
+                  >
+                    {priceSuggestionError}
+                  </motion.div>
+                )}
+              </div>
+
+              {/* ── Divider ── */}
+              <div className="hidden lg:block bg-border" />
+
+              {/* ── COL 3 : Live Preview ── */}
+              <div className="p-6 border-t border-border lg:border-t-0">
+                <p className="text-xs font-semibold tracking-[0.15em] uppercase text-muted-foreground mb-4">
                   Live Preview
                 </p>
 
-                <div className="mt-4 overflow-hidden rounded-2xl border border-border bg-card">
+                <div className="overflow-hidden rounded-2xl border border-border bg-background/70">
                   <div className="relative aspect-[4/3] overflow-hidden bg-secondary/30">
                     <img
                       src={previewImage}
@@ -800,11 +966,11 @@ export function StockIntelligence() {
 
                   <div className="space-y-4 p-4">
                     <div>
-                      <h3 className="text-lg font-semibold text-foreground">
+                      <h3 className="text-base font-semibold text-foreground">
                         {formData.productName.trim() || 'New inventory item'}
                       </h3>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        {formData.category.trim() || 'Choose a category for this product'}
+                      <p className="mt-0.5 text-sm text-muted-foreground">
+                        {formData.category.trim() || 'No category set'}
                       </p>
                     </div>
 
@@ -820,30 +986,30 @@ export function StockIntelligence() {
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-2 gap-2">
                       <div className="rounded-xl border border-border bg-card px-3 py-2">
-                        <p className="text-[11px] font-semibold tracking-wider uppercase text-muted-foreground">
-                          Cost Price
+                        <p className="text-[10px] font-semibold tracking-wider uppercase text-muted-foreground">
+                          Cost
                         </p>
-                        <p className="mt-1 text-base font-semibold text-foreground">
+                        <p className="mt-1 text-sm font-semibold text-foreground">
                           {formatCurrency(formData.costPrice || 0)}
                         </p>
                       </div>
                       <div className="rounded-xl border border-border bg-card px-3 py-2">
-                        <p className="text-[11px] font-semibold tracking-wider uppercase text-muted-foreground">
-                          Selling Price
+                        <p className="text-[10px] font-semibold tracking-wider uppercase text-muted-foreground">
+                          Selling
                         </p>
-                        <p className="mt-1 text-base font-semibold text-foreground">
+                        <p className="mt-1 text-sm font-semibold text-foreground">
                           {formatCurrency(formData.sellingPrice || 0)}
                         </p>
                       </div>
                     </div>
 
                     <div className="rounded-xl border border-emerald-500/15 bg-emerald-500/10 px-3 py-3">
-                      <p className="text-[11px] font-semibold tracking-wider uppercase text-emerald-300/80">
-                        Estimated Total Value
+                      <p className="text-[10px] font-semibold tracking-wider uppercase text-emerald-300/80">
+                        Est. Total Value
                       </p>
-                      <p className="mt-1 text-xl font-semibold text-foreground">
+                      <p className="mt-1 text-lg font-semibold text-foreground">
                         {formatCurrency(previewQuantity * previewSellingPrice)}
                       </p>
                     </div>

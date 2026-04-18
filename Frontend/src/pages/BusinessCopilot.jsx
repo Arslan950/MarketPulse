@@ -36,13 +36,6 @@ const createMessage = (role, content, id = `${Date.now()}-${Math.random().toStri
   timestamp: new Date(),
 });
 
-const createWelcomeMessage = () =>
-  createMessage(
-    'assistant',
-    "Hi! I'm your Business Copilot. Ask about sales, pricing, inventory, or growth decisions, and I'll reply using your live business data.",
-    'welcome'
-  );
-
 const getRequestConfig = () => {
   const accessToken = window.localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY);
   return {
@@ -152,7 +145,7 @@ export function BusinessCopilot() {
       );
 
       chatSessionRef.current += 1;
-      setMessages([createWelcomeMessage()]);
+      setMessages([]);
       setInput('');
       setIsTyping(false);
       inputRef.current?.focus();
@@ -170,7 +163,8 @@ export function BusinessCopilot() {
     }
   };
 
-  const showSuggestions = messages.length === 1 && !isTyping;
+  // Show suggestions when there are no messages
+  const showSuggestions = messages.length === 0 && !isTyping;
 
   return (
     <div className="flex h-[calc(100vh-8rem)] flex-col">
@@ -199,43 +193,63 @@ export function BusinessCopilot() {
         className="flex flex-1 flex-col overflow-hidden rounded-2xl border border-border bg-card transition-colors duration-300"
       >
         <div className="scrollbar-hide flex-1 space-y-6 overflow-y-auto p-6">
-          <AnimatePresence initial={false}>
-            {messages.map((message) => (
+          
+          {messages.length === 0 ? (
+            <div className="flex h-full flex-col items-center justify-center text-center">
               <motion.div
-                key={message.id}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3 }}
-                className={`flex gap-3 ${message.role === 'user' ? 'flex-row-reverse' : ''}`}
+                transition={{ duration: 0.5 }}
               >
-                {message.role === 'assistant' ? (
-                  <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-500/15">
-                    <Brain className="h-4 w-4 text-emerald-500" />
-                  </div>
-                ) : (
-                  <Avatar size="sm">
-                    <AvatarFallback className="rounded-xl bg-blue-500/15 text-xs font-semibold text-blue-600 dark:text-blue-400">
-                      You
-                    </AvatarFallback>
-                  </Avatar>
-                )}
-
-                <div
-                  className={`max-w-[75%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${message.role === 'user'
-                      ? 'rounded-tr-md bg-emerald-500 text-white'
-                      : 'rounded-tl-md bg-secondary text-foreground'
-                    }`}
-                >
-                  {message.role === 'assistant' ? renderAssistantContent(message.content) : <p>{message.content}</p>}
-                  <p
-                    className={`mt-2 text-[10px] ${message.role === 'user' ? 'text-white/60' : 'text-muted-foreground'}`}
-                  >
-                    {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </p>
-                </div>
+                <h2 className="text-4xl font-medium tracking-tight text-foreground sm:text-5xl">
+                  <span className="bg-gradient-to-r from-emerald-400 to-emerald-600 bg-clip-text text-transparent">
+                    Hello there
+                  </span>
+                </h2>
+                <h2 className="mt-3 text-3xl font-medium text-muted-foreground sm:text-4xl">
+                  Where should we start?
+                </h2>
               </motion.div>
-            ))}
-          </AnimatePresence>
+            </div>
+          ) : (
+            <AnimatePresence initial={false}>
+              {messages.map((message) => (
+                <motion.div
+                  key={message.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className={`flex gap-3 ${message.role === 'user' ? 'flex-row-reverse' : ''}`}
+                >
+                  {message.role === 'assistant' ? (
+                    <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-500/15">
+                      <Brain className="h-4 w-4 text-emerald-500" />
+                    </div>
+                  ) : (
+                    <Avatar size="sm">
+                      <AvatarFallback className="rounded-xl bg-blue-500/15 text-xs font-semibold text-blue-600 dark:text-blue-400">
+                        You
+                      </AvatarFallback>
+                    </Avatar>
+                  )}
+
+                  <div
+                    className={`max-w-[75%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${message.role === 'user'
+                        ? 'rounded-tr-md bg-emerald-500 text-white'
+                        : 'rounded-tl-md bg-secondary text-foreground'
+                      }`}
+                  >
+                    {message.role === 'assistant' ? renderAssistantContent(message.content) : <p>{message.content}</p>}
+                    <p
+                      className={`mt-2 text-[10px] ${message.role === 'user' ? 'text-white/60' : 'text-muted-foreground'}`}
+                    >
+                      {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  </div>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          )}
 
           {isTyping && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex gap-3">
@@ -262,7 +276,7 @@ export function BusinessCopilot() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 10 }}
-                className="mb-3 flex flex-wrap gap-2"
+                className="mb-3 flex flex-wrap gap-2 justify-center"
               >
                 {starterPrompts.map((suggestion, index) => (
                   <motion.button
@@ -282,7 +296,7 @@ export function BusinessCopilot() {
             )}
           </AnimatePresence>
 
-          <form onSubmit={handleSubmit} className="flex items-center gap-3">
+          <form onSubmit={handleSubmit} className="flex items-center gap-3 max-w-full mx-auto">
             <div className="relative flex-1">
               <input
                 ref={inputRef}

@@ -24,6 +24,21 @@ async function getGroqChatCompletion(systemPrompt, conversationHistory) {
     });
 }
 
+async function getGroqPriceSuggestion(systemPrompt) {
+    return groq.chat.completions.create({
+        messages: [
+            {
+                role: "user",
+                content: systemPrompt,
+            },
+        ],
+        model: "llama-3.1-8b-instant",
+        temperature: 0.4,
+        max_tokens: 150,
+        top_p: 0.9,
+    })
+}
+
 const businessCopilot = asyncHandler(async (req, res) => {
     const { prompt } = req.body;
 
@@ -142,7 +157,68 @@ const clearCopilotHistory = asyncHandler(async (req, res) => {
         .json(new ApiResponse(200, {}, "Conversation history cleared"));
 });
 
+const priceSuggestion = asyncHandler(async (req, res) => {
+    const { productName, quantity, costPrice, userInstruction } = req.body;
+
+    if (!productName) {
+        throw new ApiError(400, "Product name is required and must be a string");
+    }
+
+    if (quantity === undefined) {
+        throw new ApiError(400, "Quantity is required and must be a valid number");
+    }
+
+    if (costPrice === undefined) {
+        throw new ApiError(400, "Cost price is required and must be a valid number");
+    }
+
+    const businessInfo = await Business.findOne({ owner: req.user._id }).select(
+        "-_id -profilePicture -website -owner -createdAt -updatedAt -__v"
+    );
+
+    if (!businessInfo) {
+        throw new ApiError(404, "Business profile not found. Please set up your business first.");
+    }
+
+    const businessString = JSON.stringify(businessInfo);
+
+    const systemPrompt = `You are a professional pricing strategist.
+
+    --- BUSINESS CONTEXT ---
+    ${businessString}
+
+    --- PRODUCT DETAILS ---
+    Product Name: ${productName}
+    Cost Price: ${costPrice} INR
+    Quantity: ${quantity}
+    Special Instruction: ${userInstruction || "None"}
+
+    --- INSTRUCTIONS ---
+    - Suggest ONE specific selling price in INR only
+    - Factor in the business location and market from the business context
+    - Profit margin must be realistic for this business type and local market
+    - Never suggest a price below or equal to the cost price
+    - Do NOT repeat any business info, product name, or input data back
+    - Do NOT add any intro line, greeting, or explanation before the format below
+    - Do NOT give ranges — one exact number only
+
+    --- RESPOND IN EXACTLY THIS FORMAT, NOTHING BEFORE OR AFTER ---
+    Suggested Price: [number only, e.g. 1200]
+        Reasoning: [2-3 lines max]`;
+
+    const response = await getGroqPriceSuggestion(systemPrompt);
+
+    const responseMessage = response.choices[0]?.message?.content;
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(200, { responseMessage }, "Price Suggested succesfully")
+        )
+});
+
 export {
     businessCopilot,
     clearCopilotHistory,
+    priceSuggestion
 }

@@ -322,10 +322,6 @@ export function ProcurementHub() {
             Procurement Workspace
           </p>
           <h1 className="mt-2 text-3xl font-bold text-foreground">Procurement Hub</h1>
-          <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-            Browse supplier stock, place live catalog purchases, and add your own items through the
-            backend procurement APIs.
-          </p>
         </div>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -389,9 +385,6 @@ export function ProcurementHub() {
               </div>
               <div>
                 <h2 className="text-lg font-semibold text-foreground">Search & Filter</h2>
-                <p className="text-sm text-muted-foreground">
-                  Narrow the live catalog by name and category.
-                </p>
               </div>
             </div>
 
@@ -447,9 +440,6 @@ export function ProcurementHub() {
             <div className="flex items-center justify-between gap-3">
               <div>
                 <h2 className="text-lg font-semibold text-foreground">Product List</h2>
-                <p className="text-sm text-muted-foreground">
-                  Live catalog data fetched from the backend.
-                </p>
               </div>
               <span className="rounded-full border border-border bg-background px-3 py-1 text-xs font-medium text-muted-foreground">
                 {filteredProducts.length} results
@@ -639,9 +629,6 @@ export function ProcurementHub() {
               </div>
               <div>
                 <h2 className="text-lg font-semibold text-foreground">Add Catalog Item</h2>
-                <p className="text-sm text-muted-foreground">
-                  Create a new supplier listing with the backend add-item endpoint.
-                </p>
               </div>
             </div>
 
@@ -720,12 +707,7 @@ export function ProcurementHub() {
                   />
                 </div>
               </div>
-
-              <div className="rounded-2xl border border-border bg-background/40 px-4 py-3 text-xs text-muted-foreground">
-                Items added here are saved through the backend, but the current `get-catalog`
-                endpoint excludes the logged-in user&apos;s own listings from this browse view.
-              </div>
-
+              
               {listingError ? (
                 <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
                   {listingError}
@@ -751,9 +733,6 @@ export function ProcurementHub() {
           >
             <div>
               <h2 className="text-lg font-semibold text-foreground">Recent Purchases</h2>
-              <p className="text-sm text-muted-foreground">
-                Recorded from successful buy API calls in this session.
-              </p>
             </div>
 
             <div className="mt-6 space-y-3">
