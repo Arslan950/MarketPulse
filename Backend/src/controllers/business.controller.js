@@ -4,7 +4,7 @@ import { asyncHandler } from "../utils/async-handler.js"
 import { Business } from "../models/business.model.js"
 
 const setBusinessInfo = asyncHandler(async (req, res) => {
-    const { profilePicture, businessName, description, website , location } = req.body;
+    const { profilePicture, businessName, description, category ,  website , location } = req.body;
 
     const existingBusiness = await Business.findOne({ owner: req.user._id });
     if (existingBusiness) {
@@ -15,6 +15,7 @@ const setBusinessInfo = asyncHandler(async (req, res) => {
         profilePicture,
         businessName,
         description,
+        category,
         website,
         location,
         owner: req.user._id
@@ -49,13 +50,14 @@ const getBusinessInfo = asyncHandler(async (req, res) => {
 });
 
 const editBusinessInfo = asyncHandler(async (req, res) => {
-    const { profilePicture, businessName, description, website , location} = req.body;
+    const { profilePicture, businessName, description, category ,  website , location} = req.body;
 
     const updateData = {};
 
     if (profilePicture) updateData.profilePicture = profilePicture;
     if (businessName) updateData.businessName = businessName;
     if (description) updateData.description = description;
+    if(category) updateData.category = category ;
     if (website !== undefined) updateData.website = website;
     if (location !== undefined) updateData.location = location;
 

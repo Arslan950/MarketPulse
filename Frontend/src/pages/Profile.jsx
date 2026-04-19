@@ -1,11 +1,31 @@
 import React, { useRef, useState } from 'react';
 import axios from 'axios';
 import { motion } from 'framer-motion';
-import { Building2, Globe, Mail, Phone, User, Edit2, Save, X, Camera, MapPin } from 'lucide-react'; 
+import { Building2, Globe, Mail, Phone, User, Edit2, Save, X, Camera, MapPin, Layers2 } from 'lucide-react'; 
 import { Avatar, AvatarFallback, AvatarImage } from '../components/Avatar';
 import { useAuthStore } from "../store/UserInfo.js";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+  SelectGroup,
+  SelectLabel,
+} from '../components/Select';
 
 const ACCESS_TOKEN_STORAGE_KEY = 'marketpulse-access-token';
+
+const BUSINESS_CATEGORIES = [
+  { group: 'Retail & Commerce', items: ['Retail & E-commerce', 'Clothing & Apparel', 'Luxury & Jewellery', 'Footwear', 'Grocery & Supermarket', 'Pharmacy & Wellness', 'Home & Furniture', 'Sports & Outdoors', 'Books & Stationery', 'Toys & Kids'] },
+  { group: 'Technology', items: ['Electronics & Gadgets', 'Software & SaaS', 'Telecom & Networking', 'IT Services & Consulting', 'Cybersecurity', 'AI & Machine Learning', 'Hardware & Components', 'Gaming & Esports'] },
+  { group: 'Food & Beverage', items: ['Restaurant & Café', 'Cloud Kitchen', 'Bakery & Confectionery', 'Beverages & Drinks', 'Food Processing & FMCG', 'Catering & Events'] },
+  { group: 'Health & Wellness', items: ['Healthcare & Clinics', 'Fitness & Gym', 'Mental Health', 'Beauty & Cosmetics', 'Ayurveda & Herbal', 'Dental & Optical'] },
+  { group: 'Finance & Legal', items: ['Banking & Finance', 'Insurance', 'Accounting & Taxation', 'Legal Services', 'Investment & Fintech', 'Real Estate & Property'] },
+  { group: 'Education & Training', items: ['School & College', 'EdTech & E-learning', 'Tutoring & Coaching', 'Skill Development', 'Corporate Training'] },
+  { group: 'Media & Creative', items: ['Marketing & Advertising', 'Media & Publishing', 'Photography & Film', 'Design & Creative Agency', 'Music & Entertainment', 'Social Media & Influencer'] },
+  { group: 'Services', items: ['Logistics & Delivery', 'Travel & Tourism', 'Hospitality & Hotels', 'Automotive & Transport', 'Construction & Engineering', 'Manufacturing & Industry', 'Agriculture & Farming', 'Cleaning & Facility', 'Event Management', 'HR & Recruitment', 'NGO & Non-profit', 'Government & Public Sector'] },
+];
 
 const initialProfile = {
   fullName: '',
@@ -16,6 +36,7 @@ const initialProfile = {
   website: '',
   profilePicture: '',
   location: '',
+  category: '',
 };
 
 function normalizeWebsiteUrl(website) {
@@ -36,28 +57,28 @@ function ProfileField({ icon: Icon, label, value, href, isEditing, name, onChang
 
       {isEditing ? (
         isTextArea ? (
-            <textarea
+          <textarea
+            name={name}
+            value={value}
+            onChange={onChange}
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 min-h-[100px]"
+            placeholder={`Enter ${label.toLowerCase()}`}
+          />
+        ) : (
+          <div className="relative">
+            <Icon className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+            <input
+              type={type}
               name={name}
               value={value}
               onChange={onChange}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 min-h-[100px]"
+              className="w-full rounded-md border border-input bg-background pl-9 pr-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
               placeholder={`Enter ${label.toLowerCase()}`}
             />
-        ) : (
-            <div className="relative">
-                <Icon className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                <input
-                type={type}
-                name={name}
-                value={value}
-                onChange={onChange}
-                className="w-full rounded-md border border-input bg-background pl-9 pr-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
-                placeholder={`Enter ${label.toLowerCase()}`}
-                />
-            </div>
+          </div>
         )
       ) : href && value ? (
-        <a
+       <a 
           href={href}
           target="_blank"
           rel="noreferrer"
@@ -70,6 +91,40 @@ function ProfileField({ icon: Icon, label, value, href, isEditing, name, onChang
         <div className="flex items-center gap-3 text-sm font-medium text-foreground">
           <Icon className="h-4 w-4 text-muted-foreground" />
           <span className="break-words">{content}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Separate component for the category field so it can use the custom Select when editing
+function CategoryField({ value, isEditing, onChange }) {
+  return (
+    <div className="rounded-2xl border border-border bg-background/50 p-4">
+      <p className="mb-3 text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+        Business Category
+      </p>
+
+      {isEditing ? (
+        <Select value={value || ''} onValueChange={(val) => onChange(val)}>
+          <SelectTrigger className="h-10 w-full rounded-xl border-input bg-background text-sm">
+            <SelectValue placeholder="Select a category" />
+          </SelectTrigger>
+          <SelectContent className="max-h-72 overflow-y-auto rounded-xl border border-border bg-card shadow-xl">
+            {BUSINESS_CATEGORIES.map(({ group, items }) => (
+              <SelectGroup key={group}>
+                <SelectLabel>{group}</SelectLabel>
+                {items.map((item) => (
+                  <SelectItem key={item} value={item}>{item}</SelectItem>
+                ))}
+              </SelectGroup>
+            ))}
+          </SelectContent>
+        </Select>
+      ) : (
+        <div className="flex items-center gap-3 text-sm font-medium text-foreground">
+          <Layers2 className="h-4 w-4 text-muted-foreground" />
+          <span className="break-words">{value || 'Not available'}</span>
         </div>
       )}
     </div>
@@ -96,7 +151,8 @@ export function Profile() {
     businessSummary: business?.description || '',
     website: business?.website || '',
     profilePicture: business?.profilePicture || '',
-    location: business?.location || '', // Pull location from store
+    location: business?.location || '',
+    category: business?.category || '',
   };
 
   const handleEditChange = (e) => {
@@ -111,7 +167,6 @@ export function Profile() {
         alert("Image must be smaller than 5MB");
         return;
       }
-      
       const reader = new FileReader();
       reader.onloadend = () => {
         setEditForm(prev => ({ ...prev, profilePicture: reader.result }));
@@ -130,7 +185,8 @@ export function Profile() {
         description: editForm.businessSummary,
         website: editForm.website,
         profilePicture: editForm.profilePicture,
-        location: editForm.location 
+        location: editForm.location,
+        category: editForm.category,
       };
 
       const response = await axios.patch(
@@ -144,7 +200,7 @@ export function Profile() {
 
       const updatedBusiness =
         response.data?.data?.business ||
-        response.data?.data?.updatebusinessInfo || // account for your specific controller response
+        response.data?.data?.updatebusinessInfo ||
         response.data?.data || {};
 
       updateBusinessInStore({
@@ -152,7 +208,8 @@ export function Profile() {
         description: updatedBusiness.description ?? payload.description,
         website: updatedBusiness.website ?? payload.website,
         profilePicture: updatedBusiness.profilePicture ?? payload.profilePicture,
-        location: updatedBusiness.location ?? payload.location, // Update store
+        location: updatedBusiness.location ?? payload.location,
+        category: updatedBusiness.category ?? payload.category,
       });
       setIsEditing(false);
       
@@ -216,7 +273,6 @@ export function Profile() {
 
           <div className="bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.18),_transparent_45%)] px-6 py-8 sm:px-8">
             <div className="flex flex-col items-center text-center">
-              
               <div className="relative group">
                 <Avatar size="lg" className="h-28 w-28 border-4 border-background shadow-lg">
                   <AvatarImage src={isEditing ? editForm.profilePicture : profile.profilePicture} alt={profile.fullName || 'Profile picture'} />
@@ -254,7 +310,7 @@ export function Profile() {
           </div>
         </motion.div>
 
-        {/* Personal Info - Always Read Only */}
+        {/* Personal Info */}
         <motion.section
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -265,7 +321,6 @@ export function Profile() {
             <h2 className="text-xl font-semibold text-foreground">Personal Information</h2>
             {isEditing && <p className="text-xs text-muted-foreground mt-1">Personal information cannot be edited here.</p>}
           </div>
-
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <ProfileField icon={User} label="Full Name" value={profile.fullName} />
             <ProfileField icon={Mail} label="Email Address" value={profile.email} />
@@ -273,7 +328,7 @@ export function Profile() {
           </div>
         </motion.section>
 
-        {/* Business Info - Editable */}
+        {/* Business Info */}
         <motion.section
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -284,7 +339,7 @@ export function Profile() {
             <h2 className="text-xl font-semibold text-foreground">Business Information</h2>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <ProfileField 
               icon={Building2} 
               label="Business Name" 
@@ -292,6 +347,12 @@ export function Profile() {
               isEditing={isEditing}
               name="businessName"
               onChange={handleEditChange}
+            />
+            {/* Category with custom Select dropdown */}
+            <CategoryField
+              value={isEditing ? editForm.category : profile.category}
+              isEditing={isEditing}
+              onChange={(val) => setEditForm(prev => ({ ...prev, category: val }))}
             />
             <ProfileField 
               icon={MapPin} 
@@ -313,7 +374,7 @@ export function Profile() {
             />
           </div>
 
-          <div className="mt-4">
+          <div className="mt-5">
             <ProfileField 
               icon={Building2} 
               label="Business Summary" 

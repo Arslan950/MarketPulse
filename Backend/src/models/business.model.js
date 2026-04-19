@@ -16,6 +16,10 @@ const businessSchema = new Schema(
             required: [true, "Business description is required"],
             trim: true,
         },
+        category : {
+            type : String,
+            required : [true , "Business Category is required"]
+        },
         website: {
             type: String,
             trim: true,

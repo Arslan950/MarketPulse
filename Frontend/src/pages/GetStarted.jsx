@@ -1,18 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import { Building2, Check, Globe, ImagePlus, LocateIcon, SkipForward } from 'lucide-react';
+import { Building2, Check, Globe, ImagePlus, LocateIcon, SkipForward, LayoutGrid, ChevronDown } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { AuthLayout } from '../components/AuthLayout';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { Avatar, AvatarFallback, AvatarImage } from '../components/Avatar';
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+  SelectGroup,
+  SelectLabel,
+} from '../components/Select';
 
 const ACCESS_TOKEN_STORAGE_KEY = 'marketpulse-access-token';
 
 const initialFormData = {
   businessName: '',
   description: '',
+  category: '',
   website: '',
   profilePicture: '',
   location: ''
@@ -138,50 +148,145 @@ export function GetStarted() {
         </div>
 
         {step === 1 ? (
-          <form onSubmit={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            handleNext();
-          }}>
+          <form onSubmit={(e) => { e.preventDefault(); e.stopPropagation(); handleNext(); }}>
             <motion.div
               initial={{ opacity: 0, y: 18 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.25 }}
-              className="space-y-5"
+              className="space-y-4"
             >
-              <div className="space-y-2">
-                <label
-                  htmlFor="businessName"
-                  className="text-sm font-medium text-foreground"
-                >
-                  Business Name
-                </label>
-                <div className="relative">
-                  <Building2 className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    id="businessName"
-                    name="businessName"
-                    value={formData.businessName}
-                    onChange={handleInputChange}
-                    placeholder="Northwind Retail"
-                    className="h-12 rounded-2xl border-border bg-background/80 pl-11"
-                    required
-                  />
+              {/* Row 1: Business Name + Category */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label htmlFor="businessName" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Business Name
+                  </label>
+                  <div className="relative">
+                    <Building2 className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      id="businessName"
+                      name="businessName"
+                      value={formData.businessName}
+                      onChange={handleInputChange}
+                      placeholder="Northwind Retail"
+                      className="h-11 rounded-2xl border-border bg-background/80 pl-11"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Category
+                  </label>
+                  <Select
+                    value={formData.category}
+                    onValueChange={(value) =>
+                      setFormData((prev) => ({ ...prev, category: value }))
+                    }
+                  >
+                    <SelectTrigger className="h-11 w-full rounded-2xl border-border bg-background/80 px-4 text-sm">
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-72 overflow-y-auto rounded-2xl border border-border bg-card shadow-xl">
+                      <SelectGroup>
+                        <SelectLabel>Retail & Commerce</SelectLabel>
+                        <SelectItem value="Retail & E-commerce">Retail & E-commerce</SelectItem>
+                        <SelectItem value="Clothing & Apparel">Clothing & Apparel</SelectItem>
+                        <SelectItem value="Luxury & Jewellery">Luxury & Jewellery</SelectItem>
+                        <SelectItem value="Footwear">Footwear</SelectItem>
+                        <SelectItem value="Grocery & Supermarket">Grocery & Supermarket</SelectItem>
+                        <SelectItem value="Pharmacy & Wellness">Pharmacy & Wellness</SelectItem>
+                        <SelectItem value="Home & Furniture">Home & Furniture</SelectItem>
+                        <SelectItem value="Sports & Outdoors">Sports & Outdoors</SelectItem>
+                        <SelectItem value="Books & Stationery">Books & Stationery</SelectItem>
+                        <SelectItem value="Toys & Kids">Toys & Kids</SelectItem>
+                      </SelectGroup>
+                      <SelectGroup>
+                        <SelectLabel>Technology</SelectLabel>
+                        <SelectItem value="Electronics & Gadgets">Electronics & Gadgets</SelectItem>
+                        <SelectItem value="Software & SaaS">Software & SaaS</SelectItem>
+                        <SelectItem value="Telecom & Networking">Telecom & Networking</SelectItem>
+                        <SelectItem value="IT Services & Consulting">IT Services & Consulting</SelectItem>
+                        <SelectItem value="Cybersecurity">Cybersecurity</SelectItem>
+                        <SelectItem value="AI & Machine Learning">AI & Machine Learning</SelectItem>
+                        <SelectItem value="Hardware & Components">Hardware & Components</SelectItem>
+                        <SelectItem value="Gaming & Esports">Gaming & Esports</SelectItem>
+                      </SelectGroup>
+                      <SelectGroup>
+                        <SelectLabel>Food & Beverage</SelectLabel>
+                        <SelectItem value="Restaurant & Café">Restaurant & Café</SelectItem>
+                        <SelectItem value="Cloud Kitchen">Cloud Kitchen</SelectItem>
+                        <SelectItem value="Bakery & Confectionery">Bakery & Confectionery</SelectItem>
+                        <SelectItem value="Beverages & Drinks">Beverages & Drinks</SelectItem>
+                        <SelectItem value="Food Processing & FMCG">Food Processing & FMCG</SelectItem>
+                        <SelectItem value="Catering & Events">Catering & Events</SelectItem>
+                      </SelectGroup>
+                      <SelectGroup>
+                        <SelectLabel>Health & Wellness</SelectLabel>
+                        <SelectItem value="Healthcare & Clinics">Healthcare & Clinics</SelectItem>
+                        <SelectItem value="Fitness & Gym">Fitness & Gym</SelectItem>
+                        <SelectItem value="Mental Health">Mental Health</SelectItem>
+                        <SelectItem value="Beauty & Cosmetics">Beauty & Cosmetics</SelectItem>
+                        <SelectItem value="Ayurveda & Herbal">Ayurveda & Herbal</SelectItem>
+                        <SelectItem value="Dental & Optical">Dental & Optical</SelectItem>
+                      </SelectGroup>
+                      <SelectGroup>
+                        <SelectLabel>Finance & Legal</SelectLabel>
+                        <SelectItem value="Banking & Finance">Banking & Finance</SelectItem>
+                        <SelectItem value="Insurance">Insurance</SelectItem>
+                        <SelectItem value="Accounting & Taxation">Accounting & Taxation</SelectItem>
+                        <SelectItem value="Legal Services">Legal Services</SelectItem>
+                        <SelectItem value="Investment & Fintech">Investment & Fintech</SelectItem>
+                        <SelectItem value="Real Estate & Property">Real Estate & Property</SelectItem>
+                      </SelectGroup>
+                      <SelectGroup>
+                        <SelectLabel>Education & Training</SelectLabel>
+                        <SelectItem value="School & College">School & College</SelectItem>
+                        <SelectItem value="EdTech & E-learning">EdTech & E-learning</SelectItem>
+                        <SelectItem value="Tutoring & Coaching">Tutoring & Coaching</SelectItem>
+                        <SelectItem value="Skill Development">Skill Development</SelectItem>
+                        <SelectItem value="Corporate Training">Corporate Training</SelectItem>
+                      </SelectGroup>
+                      <SelectGroup>
+                        <SelectLabel>Media & Creative</SelectLabel>
+                        <SelectItem value="Marketing & Advertising">Marketing & Advertising</SelectItem>
+                        <SelectItem value="Media & Publishing">Media & Publishing</SelectItem>
+                        <SelectItem value="Photography & Film">Photography & Film</SelectItem>
+                        <SelectItem value="Design & Creative Agency">Design & Creative Agency</SelectItem>
+                        <SelectItem value="Music & Entertainment">Music & Entertainment</SelectItem>
+                        <SelectItem value="Social Media & Influencer">Social Media & Influencer</SelectItem>
+                      </SelectGroup>
+                      <SelectGroup>
+                        <SelectLabel>Services</SelectLabel>
+                        <SelectItem value="Logistics & Delivery">Logistics & Delivery</SelectItem>
+                        <SelectItem value="Travel & Tourism">Travel & Tourism</SelectItem>
+                        <SelectItem value="Hospitality & Hotels">Hospitality & Hotels</SelectItem>
+                        <SelectItem value="Automotive & Transport">Automotive & Transport</SelectItem>
+                        <SelectItem value="Construction & Engineering">Construction & Engineering</SelectItem>
+                        <SelectItem value="Manufacturing & Industry">Manufacturing & Industry</SelectItem>
+                        <SelectItem value="Agriculture & Farming">Agriculture & Farming</SelectItem>
+                        <SelectItem value="Cleaning & Facility">Cleaning & Facility</SelectItem>
+                        <SelectItem value="Event Management">Event Management</SelectItem>
+                        <SelectItem value="HR & Recruitment">HR & Recruitment</SelectItem>
+                        <SelectItem value="NGO & Non-profit">NGO & Non-profit</SelectItem>
+                        <SelectItem value="Government & Public Sector">Government & Public Sector</SelectItem>
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
+              {/* Row 2: Description full-width */}
               <div className="space-y-2">
-                <label
-                  htmlFor="description"
-                  className="text-sm font-medium text-foreground"
-                >
+                <label htmlFor="description" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   Description
                 </label>
                 <textarea
                   required
                   id="description"
                   name="description"
-                  rows={5}
+                  rows={4}
                   value={formData.description}
                   onChange={handleInputChange}
                   placeholder="Tell us what your business does, who you serve, or what you sell."
@@ -189,63 +294,56 @@ export function GetStarted() {
                 />
               </div>
 
-              <div className="space-y-2">
-                <label
-                  htmlFor="website"
-                  className="text-sm font-medium text-foreground"
-                >
-                  Website
-                </label>
-                <div className="relative">
-                  <Globe className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    id="website"
-                    name="website"
-                    type="url"
-                    value={formData.website}
-                    onChange={handleInputChange}
-                    placeholder="https://yourbusiness.com"
-                    className="h-12 rounded-2xl border-border bg-background/80 pl-11"
-                  />
+              {/* Row 3: Website + Location */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label htmlFor="website" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Website
+                  </label>
+                  <div className="relative">
+                    <Globe className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      id="website"
+                      name="website"
+                      type="url"
+                      value={formData.website}
+                      onChange={handleInputChange}
+                      placeholder="https://yourbusiness.com"
+                      className="h-11 rounded-2xl border-border bg-background/80 pl-11"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label htmlFor="location" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Location
+                  </label>
+                  <div className="relative">
+                    <LocateIcon className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      id="location"
+                      name="location"
+                      type="text"
+                      value={formData.location}
+                      onChange={handleInputChange}
+                      placeholder="Ludhiana, Punjab"
+                      className="h-11 rounded-2xl border-border bg-background/80 pl-11"
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <label
-                  htmlFor="location"
-                  className="text-sm font-medium text-foreground"
-                >
-                  Location
-                </label>
-                <div className="relative">
-                  <LocateIcon className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    id="location"
-                    name="location"
-                    type="text"
-                    value={formData.location}
-                    onChange={handleInputChange}
-                    placeholder="Ludhiana , Punjab"
-                    className="h-12 rounded-2xl border-border bg-background/80 pl-11"
-                  />
-                </div>
-              </div>
+              {errorMessage && (
+                <p className="text-sm text-red-500" aria-live="polite">{errorMessage}</p>
+              )}
 
-              {errorMessage ? (
-                <p className="text-sm text-red-500" aria-live="polite">
-                  {errorMessage}
-                </p>
-              ) : null}
-
-              <div className="grid grid-cols-1 gap-3">
-                <Button
-                  type="submit"
-                  size="lg"
-                  className="h-12 rounded-2xl bg-emerald-500 text-base font-semibold text-white hover:bg-emerald-600"
-                >
-                  Next
-                </Button>
-              </div>
+              <Button
+                type="submit"
+                size="lg"
+                className="h-12 w-full rounded-2xl bg-emerald-500 text-base font-semibold text-white hover:bg-emerald-600"
+              >
+                Next
+              </Button>
             </motion.div>
           </form>
         ) : (
