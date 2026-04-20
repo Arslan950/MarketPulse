@@ -16,6 +16,8 @@ import {
   Loader2,
   Sparkles,
   MessageSquare,
+  AlertTriangle,
+  AlertCircle
 } from 'lucide-react';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
@@ -44,13 +46,21 @@ const statusConfig = {
     color: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
     icon: <CheckCircle2 className="w-3 h-3" />,
   },
+  'Low Stock (Warning)': {
+    color: 'bg-yellow-500/15 text-yellow-600 dark:text-yellow-400 border-yellow-500/20',
+    icon: <AlertTriangle className="w-3 h-3" />,
+  },
+  'Low Stock (Critical)': {
+    color: 'bg-orange-500/15 text-orange-600 dark:text-orange-400 border-orange-500/20',
+    icon: <AlertCircle className="w-3 h-3" />,
+  },
   'Out of Stock': {
     color: 'bg-red-500/15 text-red-600 dark:text-red-400 border-red-500/20',
     icon: <XCircle className="w-3 h-3" />,
   },
 };
 
-const statusOptions = ['All', 'In Stock', 'Out of Stock'];
+const statusOptions = ['All', 'In Stock', 'Low Stock (Warning)', 'Low Stock (Critical)', 'Out of Stock'];
 
 const formatCurrency = (value, options = {}) =>
   new Intl.NumberFormat('en-IN', {
@@ -65,8 +75,24 @@ const normalizeProduct = (product) => {
   const sellingPrice = Number(product?.sellingPrice ?? 0);
   const costPrice = Number(product?.costPrice ?? 0);
   const profitPercentageValue = Number(product?.profitPercentage);
+
   const fallbackProfitPercentage =
     costPrice > 0 ? Math.round((((sellingPrice - costPrice) / costPrice) * 100) * 10) / 10 : 0;
+
+  const finalProfitPercentage = Number.isFinite(profitPercentageValue)
+    ? profitPercentageValue
+    : fallbackProfitPercentage;
+
+  let status = 'In Stock';
+  if (stockQuantity === 0) {
+    status = 'Out of Stock';
+  } else if (stockQuantity < 10) {
+    if (finalProfitPercentage > 15) {
+      status = 'Low Stock (Critical)';
+    } else {
+      status = 'Low Stock (Warning)';
+    }
+  }
 
   return {
     id: product?._id,
@@ -76,10 +102,8 @@ const normalizeProduct = (product) => {
     costPrice,
     sellingPrice,
     stockQuantity,
-    profitPercentage: Number.isFinite(profitPercentageValue)
-      ? profitPercentageValue
-      : fallbackProfitPercentage,
-    status: stockQuantity === 0 ? 'Out of Stock' : 'In Stock',
+    profitPercentage: finalProfitPercentage,
+    status,
     totalValue: stockQuantity * sellingPrice,
   };
 };
@@ -465,9 +489,27 @@ export function StockIntelligence() {
 
   const previewQuantityValue = Number(formData.stockQuantity);
   const previewSellingPriceValue = Number(formData.sellingPrice);
+  const previewCostPriceValue = Number(formData.costPrice);
+
   const previewQuantity = Number.isFinite(previewQuantityValue) ? Math.max(0, previewQuantityValue) : 0;
   const previewSellingPrice = Number.isFinite(previewSellingPriceValue) ? Math.max(0, previewSellingPriceValue) : 0;
-  const previewStatus = previewQuantity === 0 ? 'Out of Stock' : 'In Stock';
+  const previewCostPrice = Number.isFinite(previewCostPriceValue) ? Math.max(0, previewCostPriceValue) : 0;
+
+  const previewProfitPercentage = previewCostPrice > 0
+    ? ((previewSellingPrice - previewCostPrice) / previewCostPrice) * 100
+    : 0;
+
+  let previewStatus = 'In Stock';
+  if (previewQuantity === 0) {
+    previewStatus = 'Out of Stock';
+  } else if (previewQuantity < 10) {
+    if (previewProfitPercentage > 15) {
+      previewStatus = 'Low Stock (Critical)';
+    } else {
+      previewStatus = 'Low Stock (Warning)';
+    }
+  }
+
   const previewStatusConfig = statusConfig[previewStatus];
   const previewImage = formData.productImage.trim() || DEFAULT_PRODUCT_IMAGE;
 
@@ -512,11 +554,10 @@ export function StockIntelligence() {
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          className={`rounded-2xl border px-4 py-3 text-sm ${
-            pageMessage.type === 'success'
+          className={`rounded-2xl border px-4 py-3 text-sm ${pageMessage.type === 'success'
               ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400'
               : 'border-red-500/20 bg-red-500/10 text-red-400'
-          }`}
+            }`}
         >
           {pageMessage.text}
         </motion.div>

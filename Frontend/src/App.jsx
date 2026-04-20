@@ -5,6 +5,7 @@ import { SidebarProvider, useSidebar } from './components/SidebarContext';
 import { Navbar } from './components/Navbar';
 import { Sidebar } from './components/Sidebar';
 import { TrendCommand } from './pages/TrendCommand';
+import { DashBoard } from './pages/Dashboard';
 import { StockIntelligence } from './pages/StockIntelligence';
 import { BusinessCopilot } from './pages/BusinessCopilot';
 import { ProcurementHub } from './pages/ProcurementHub';
@@ -44,12 +45,13 @@ function AppLayout() {
         <Routes>
           {isLoggedIn ? (
             <>
+              <Route path="/dashboard" element = {<DashBoard/>} />
               <Route path="/trend-command" element={<TrendCommand />} />
               <Route path="/stock-intelligence" element={<StockIntelligence />} />
               <Route path="/procurement" element={<ProcurementHub />} />
               <Route path="/business-copilot" element={<BusinessCopilot />} />
               <Route path="/profile" element={<Profile />} />
-              <Route path="*" element={<Navigate to="/trend-command" replace />} />
+              <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </>
           ) : (
             <>

@@ -1,12 +1,17 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { TrendingUp, Package, Brain, ShoppingCart, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { TrendingUp, Package, Brain, ShoppingCart, PanelLeftClose, PanelLeftOpen , LayoutDashboard} from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useSidebar } from './SidebarContext';
 import { Avatar, AvatarFallback, AvatarImage } from './Avatar';
 import { useAuthStore } from '../store/UserInfo';
 
 const navItems = [
+  {
+    label : 'DashBoard',
+    path : '/dashboard',
+    icon : LayoutDashboard
+  },
   {
     label: 'Trend Command',
     path: '/trend-command',

@@ -45,7 +45,7 @@ export function GetStarted() {
   };
 
   const handleSkip = () => {
-    navigate('/trend-command');
+    navigate('/dashboard');
   };
 
   const handleNext = () => {
@@ -98,7 +98,7 @@ export function GetStarted() {
         },
       );
 
-      navigate('/trend-command');
+      navigate('/dashboard');
     } catch (error) {
       setErrorMessage(
         error.response?.data?.message ||

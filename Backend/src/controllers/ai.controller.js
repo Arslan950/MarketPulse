@@ -44,12 +44,12 @@ async function getGroqTrendingSuggestion(systemPrompt) {
     return groq.chat.completions.create({
         messages: [
             {
-                role: "user",
+                role: "system",
                 content: systemPrompt,
             },
         ],
-        model: "openai/gpt-oss-120b",
-        temperature: 0.6,
+        model: "llama-3.3-70b-versatile",
+        temperature: 0.2,
         max_tokens: 1024,
     })
 }
@@ -278,36 +278,34 @@ const trendingItemsSuggestion = asyncHandler(async (req, res) => {
     const bCategory = businessInfo.category || "General Retail";
     const bDesc = businessInfo.description || "A retail business looking for new inventory.";
 
-    const systemPrompt = `
-You are an elite Retail Trend Forecaster and Merchandising Expert.
+const systemPrompt = `You are an automated Business Trend Forecaster API.
+Your job is to analyze the business and return EXACTLY 8 trending, revenue-generating offerings.
 
-Your objective is to analyze the provided business profile and recommend exactly 8 highly specific, profitable, and currently TRENDING products that this exact business should stock right now.
-
-=========================================
-BUSINESS PROFILE
-=========================================
-Business Name: ${bName}
-Primary Category: ${bCategory}
+BUSINESS:
+Name: ${bName}
+Category: ${bCategory}
 Description: ${bDesc}
 
-=========================================
-STRICT RULES FOR TREND SUGGESTIONS
-=========================================
-1. HYPER-SPECIFICITY: Do not suggest generic items. Suggest specific, modern, trending variations.
-2. ZERO OVERLAP: Every single item must occupy a completely different sub-category. 
-3. TREND JUSTIFICATION: Explain exactly why it is trending right now and fits the business.
-4. INVENTORY ONLY: Suggest physical items or direct services to sell. NO operational assets.
+CRITICAL RULES:
+1. REVENUE OFFERINGS ONLY: Suggest ONLY what this business can SELL to its clients or customers. 
+   - If retail/product: Suggest trending physical inventory.
+   - If service/logistics: Suggest trending new services or value-add offerings.
+2. NO BUSINESS EQUIPMENT: NEVER suggest operational tools, equipment, or software used to run the business (e.g., NO trucks, NO forklifts, NO POS systems).
+3. NO DUPLICATES OR EQUIVALENTS: All 8 items must be from completely different sub-categories. 
+4. MATCH THE MARKET: Keep suggestions realistic to the scale and likely market of the described business.
+5. THE REASONING: Explain exactly why this item drives revenue or solves a current 2026 consumer problem.
+6. Output EXACTLY 8 items. Do not stop until you reach 8.
 
-=========================================
-OUTPUT FORMAT (STRICTLY DELIMITED TEXT - NO JSON)
-=========================================
-Do NOT output JSON. Do NOT output markdown. Do NOT use bullet points, numbering, or hyphens at the start of the line.
-Output EXACTLY 8 lines of text. Separate the product name and the reason using a double pipe "||".
+STRICT FORMATTING (NO EXCEPTIONS):
+- NO intro text, NO outro text, NO markdown, NO bullet points, NO numbering.
+- Your very first character of output MUST be the first letter of the first product.
+- Format each line strictly as: Offering Name || Reason
 
-Example Output:
-Y2K Graphic Baby Tees || The Y2K aesthetic is currently dominating fashion trends on social media.
-Mushroom-Infused Cold Brew || Functional beverages are seeing a massive spike in health-conscious markets.
-`;
+EXAMPLE OUTPUT:
+Y2K Graphic Baby Tees || The Y2K aesthetic is driving massive impulse purchases among Gen Z buyers on social media.
+Cold Chain Pharmaceutical Transport || Demand for temperature-controlled medical logistics is surging, allowing for high-margin service contracts.
+
+OUTPUT YOUR 8 LINES NOW:`;
 
     const response = await getGroqTrendingSuggestion(systemPrompt);
     const responseMessage = response.choices[0]?.message?.content;
@@ -316,20 +314,19 @@ Mushroom-Infused Cold Brew || Functional beverages are seeing a massive spike in
         throw new ApiError(500, "Failed to get a response from the AI model.");
     }
 
-    const lines = responseMessage.split('\n').filter(line => line.trim() !== '');
+    const lines = responseMessage
+        .split('\n')
+        .filter(line => line.includes('||'));
 
     const suggestionArray = lines.map(line => {
-        const parts = line.split('||');
-        
-        if (parts.length < 2) return null; 
+        let [productName, reason] = line.split('||');
 
-        return {
-            productName: parts[0].trim().replace(/['"*-]/g, ''),
-            reason: parts[1].trim().replace(/['"]/g, '')
-        };
+        productName = productName.replace(/^[\d\.\-\*\s]+/, '').trim();
+        reason = reason.trim();
+
+        return { productName, reason };
     })
-    .filter(item => item !== null && item.productName !== "Example Output:") 
-    .slice(0, 8); 
+        .slice(0, 8);
 
     if (suggestionArray.length === 0) {
         console.error("AI Output could not be parsed. Raw Output:", responseMessage);

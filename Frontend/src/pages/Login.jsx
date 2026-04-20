@@ -23,7 +23,7 @@ export function Login() {
 
   useEffect(() => {
     if (isLoggedIn) {
-      navigate('/trend-command');
+      navigate('/dashboard');
     }
   }, [isLoggedIn, navigate]);
 
@@ -56,7 +56,7 @@ export function Login() {
         window.localStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, accessToken);
       }
       changeStatus();
-      navigate('/trend-command');
+      navigate('/dashboard');
     } catch (error) {
       const validationErrors = error.response?.data?.errors;
       const firstValidationError =
