@@ -6,6 +6,7 @@ import {
   Search,
   Download,
   Plus,
+  ShoppingCart,
   ArrowUpDown,
   XCircle,
   CheckCircle2,
@@ -26,6 +27,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '.
 
 const INVENTORY_API_URL = 'http://localhost:3000/api/v1/inventory';
 const AI_API_URL = 'http://localhost:3000/api/v1/ai';
+const SALES_API_URL = 'http://localhost:3000/api/v1/sales';
 
 const DEFAULT_PRODUCT_IMAGE = `data:image/svg+xml;utf8,${encodeURIComponent(
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><rect width="120" height="120" rx="24" fill="#0f172a"/><path d="M31 37h58a8 8 0 0 1 8 8v30a8 8 0 0 1-8 8H31a8 8 0 0 1-8-8V45a8 8 0 0 1 8-8Z" fill="#111827" stroke="#334155" stroke-width="4"/><path d="M32 74l18-17 14 13 15-19 18 23H32Z" fill="#10b981" opacity=".75"/><circle cx="45" cy="49" r="6" fill="#f8fafc" opacity=".85"/></svg>'
@@ -136,6 +138,10 @@ export function StockIntelligence() {
   const [pendingActionId, setPendingActionId] = useState(null);
   const [selectedImageName, setSelectedImageName] = useState('');
   const [viewingImage, setViewingImage] = useState(null);
+  const [quickSellProduct, setQuickSellProduct] = useState(null);
+  const [sellQuantity, setSellQuantity] = useState('1');
+  const [sellError, setSellError] = useState('');
+  const [isSelling, setIsSelling] = useState(false);
 
   // Price suggestion state
   const [isSuggestingPrice, setIsSuggestingPrice] = useState(false);
@@ -444,6 +450,77 @@ export function StockIntelligence() {
       });
     } finally {
       setPendingActionId(null);
+    }
+  };
+
+  const openQuickSellModal = (product) => {
+    if (product.stockQuantity <= 0) {
+      setPageMessage({
+        type: 'error',
+        text: `"${product.productName}" is out of stock and cannot be sold right now.`,
+      });
+      return;
+    }
+
+    setPageMessage(null);
+    setSellError('');
+    setSellQuantity('1');
+    setQuickSellProduct(product);
+  };
+
+  const closeQuickSellModal = () => {
+    if (isSelling) return;
+
+    setQuickSellProduct(null);
+    setSellQuantity('1');
+    setSellError('');
+  };
+
+  const handleQuickSell = async (event) => {
+    event.preventDefault();
+
+    if (!quickSellProduct) return;
+
+    const parsedQuantity = Number(sellQuantity);
+
+    if (!Number.isInteger(parsedQuantity) || parsedQuantity <= 0) {
+      setSellError('Please enter a valid whole number greater than 0.');
+      return;
+    }
+
+    if (parsedQuantity > quickSellProduct.stockQuantity) {
+      setSellError(`Only ${quickSellProduct.stockQuantity} unit(s) are currently in stock.`);
+      return;
+    }
+
+    setIsSelling(true);
+    setSellError('');
+    setPageMessage(null);
+
+    try {
+      await axios.post(
+        `${SALES_API_URL}/sell`,
+        {
+          productId: quickSellProduct.id,
+          quantitySold: parsedQuantity,
+        },
+        {
+          withCredentials: true,
+        }
+      );
+
+      await fetchInventory({ silent: true });
+      setPageMessage({
+        type: 'success',
+        text: `Sold ${parsedQuantity} unit(s) of "${quickSellProduct.productName}".`,
+      });
+      setQuickSellProduct(null);
+      setSellQuantity('1');
+      setSellError('');
+    } catch (error) {
+      setSellError(error?.response?.data?.message || 'Unable to complete the sale right now.');
+    } finally {
+      setIsSelling(false);
     }
   };
 
@@ -1187,6 +1264,17 @@ export function StockIntelligence() {
                         <Button
                           type="button"
                           variant="ghost"
+                          size="sm"
+                          onClick={() => openQuickSellModal(item)}
+                          disabled={item.stockQuantity === 0 || isSelling}
+                          className="gap-1.5 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-3 text-emerald-600 hover:bg-emerald-500/15 hover:text-emerald-500 dark:text-emerald-400"
+                        >
+                          <ShoppingCart className="w-4 h-4" />
+                          Quick Sell
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
                           size="icon-sm"
                           onClick={() => handleRemove(item)}
                           disabled={pendingActionId === item.id}
@@ -1225,6 +1313,123 @@ export function StockIntelligence() {
           </TableBody>
         </Table>
       </motion.div>
+
+      {quickSellProduct ? (
+        <div
+          className="fixed inset-0 z-[55] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+          onClick={closeQuickSellModal}
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.96, y: 12 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.2 }}
+            className="w-full max-w-md overflow-hidden border shadow-2xl rounded-3xl border-border bg-card"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-4 px-6 py-5 border-b border-border">
+              <div>
+                <p className="text-xs font-semibold tracking-[0.18em] uppercase text-emerald-400">
+                  Quick Sell
+                </p>
+                <h3 className="mt-1 text-xl font-semibold text-foreground">Record a POS sale</h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Sell inventory instantly without opening the full edit flow.
+                </p>
+              </div>
+
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                onClick={closeQuickSellModal}
+                disabled={isSelling}
+                className="rounded-xl text-muted-foreground hover:bg-secondary hover:text-foreground"
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+
+            <form onSubmit={handleQuickSell} className="space-y-5 px-6 py-6">
+              <div className="rounded-2xl border border-border bg-background/70 p-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center justify-center w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-400">
+                    <ShoppingCart className="w-5 h-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-foreground">{quickSellProduct.productName}</p>
+                    <p className="text-xs text-muted-foreground">{quickSellProduct.category}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 mt-4">
+                  <div className="rounded-xl border border-border bg-card px-3 py-3">
+                    <p className="text-[10px] font-semibold tracking-wider uppercase text-muted-foreground">
+                      Available Stock
+                    </p>
+                    <p className="mt-1 text-lg font-semibold text-foreground">
+                      {quickSellProduct.stockQuantity}
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl border border-border bg-card px-3 py-3">
+                    <p className="text-[10px] font-semibold tracking-wider uppercase text-muted-foreground">
+                      Unit Price
+                    </p>
+                    <p className="mt-1 text-lg font-semibold text-foreground">
+                      {formatCurrency(quickSellProduct.sellingPrice)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="quick-sell-quantity" className="text-sm font-medium text-foreground">
+                  Quantity to Sell
+                </label>
+                <Input
+                  id="quick-sell-quantity"
+                  type="number"
+                  min="1"
+                  max={quickSellProduct.stockQuantity}
+                  step="1"
+                  value={sellQuantity}
+                  onChange={(event) => setSellQuantity(event.target.value)}
+                  className="h-11 rounded-xl border-border bg-background"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Enter a quantity between 1 and {quickSellProduct.stockQuantity}.
+                </p>
+              </div>
+
+              {sellError ? (
+                <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+                  {sellError}
+                </div>
+              ) : null}
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={closeQuickSellModal}
+                  disabled={isSelling}
+                  className="rounded-xl border-border"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={isSelling}
+                  className="gap-2 rounded-xl bg-emerald-500 text-white hover:bg-emerald-600"
+                >
+                  {isSelling ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShoppingCart className="w-4 h-4" />}
+                  Confirm Sale
+                </Button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      ) : null}
 
       {/* Image Viewer Modal */}
       {viewingImage && (
