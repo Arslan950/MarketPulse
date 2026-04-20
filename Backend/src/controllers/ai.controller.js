@@ -4,6 +4,7 @@ import { asyncHandler } from "../utils/async-handler.js"
 import { Product } from "../models/product.model.js";
 import { Business } from "../models/business.model.js";
 import Groq from "groq-sdk";
+import axios from "axios"
 
 const conversationHistories = new Map();
 
@@ -37,6 +38,53 @@ async function getGroqPriceSuggestion(systemPrompt) {
         max_tokens: 150,
         top_p: 0.9,
     })
+}
+
+async function getGroqTrendingSuggestion(systemPrompt) {
+    return groq.chat.completions.create({
+        messages: [
+            {
+                role: "user",
+                content: systemPrompt,
+            },
+        ],
+        model: "openai/gpt-oss-120b",
+        temperature: 0.6,
+        max_tokens: 1024,
+    })
+}
+
+async function fetchImages(names) {
+    try {
+        const imagePromises = names.map(async (itemsName) => {
+            const response = await axios.get(
+                `https://api.pexels.com/v1/search?query=${encodeURIComponent(itemsName)}&per_page=1&orientation=landscape`,
+                {
+                    headers: {
+                        Authorization: process.env.PEXELS_API_KEY
+                    }
+                }
+            );
+
+            const data = response.data;
+            const imgUrl = data.photos && data.photos.length > 0
+                ? data.photos[0].src.medium
+                : null;
+
+            return {
+                productName: itemsName,
+                imageURL: imgUrl
+            };
+        });
+
+        const finalResult = await Promise.all(imagePromises);
+
+        return finalResult;
+
+    } catch (error) {
+        console.error("Failed to fetch images:", error.message);
+        return [];
+    }
 }
 
 const businessCopilot = asyncHandler(async (req, res) => {
@@ -217,8 +265,106 @@ const priceSuggestion = asyncHandler(async (req, res) => {
         )
 });
 
+const trendingItemsSuggestion = asyncHandler(async (req, res) => {
+    const businessInfo = await Business.findOne({ owner: req.user._id }).select(
+        "businessName category description -_id"
+    );
+
+    if (!businessInfo) {
+        throw new ApiError(404, "Business profile not found. Please set up your business first.");
+    }
+
+    const bName = businessInfo.businessName || "The Business";
+    const bCategory = businessInfo.category || "General Retail";
+    const bDesc = businessInfo.description || "A retail business looking for new inventory.";
+
+    const systemPrompt = `
+You are an elite Retail Trend Forecaster and Merchandising Expert.
+
+Your objective is to analyze the provided business profile and recommend exactly 8 highly specific, profitable, and currently TRENDING products that this exact business should stock right now.
+
+=========================================
+BUSINESS PROFILE
+=========================================
+Business Name: ${bName}
+Primary Category: ${bCategory}
+Description: ${bDesc}
+
+=========================================
+STRICT RULES FOR TREND SUGGESTIONS
+=========================================
+1. HYPER-SPECIFICITY: Do not suggest generic items. Suggest specific, modern, trending variations.
+2. ZERO OVERLAP: Every single item must occupy a completely different sub-category. 
+3. TREND JUSTIFICATION: Explain exactly why it is trending right now and fits the business.
+4. INVENTORY ONLY: Suggest physical items or direct services to sell. NO operational assets.
+
+=========================================
+OUTPUT FORMAT (STRICTLY DELIMITED TEXT - NO JSON)
+=========================================
+Do NOT output JSON. Do NOT output markdown. Do NOT use bullet points, numbering, or hyphens at the start of the line.
+Output EXACTLY 8 lines of text. Separate the product name and the reason using a double pipe "||".
+
+Example Output:
+Y2K Graphic Baby Tees || The Y2K aesthetic is currently dominating fashion trends on social media.
+Mushroom-Infused Cold Brew || Functional beverages are seeing a massive spike in health-conscious markets.
+`;
+
+    const response = await getGroqTrendingSuggestion(systemPrompt);
+    const responseMessage = response.choices[0]?.message?.content;
+
+    if (!responseMessage) {
+        throw new ApiError(500, "Failed to get a response from the AI model.");
+    }
+
+    const lines = responseMessage.split('\n').filter(line => line.trim() !== '');
+
+    const suggestionArray = lines.map(line => {
+        const parts = line.split('||');
+        
+        if (parts.length < 2) return null; 
+
+        return {
+            productName: parts[0].trim().replace(/['"*-]/g, ''),
+            reason: parts[1].trim().replace(/['"]/g, '')
+        };
+    })
+    .filter(item => item !== null && item.productName !== "Example Output:") 
+    .slice(0, 8); 
+
+    if (suggestionArray.length === 0) {
+        console.error("AI Output could not be parsed. Raw Output:", responseMessage);
+        throw new ApiError(500, "The AI generated an invalid text format. Please try again.");
+    }
+
+    const justNames = suggestionArray.map(item => item.productName);
+    const fetchedImagesData = await fetchImages(justNames);
+
+    const finalData = suggestionArray.map((suggestion) => {
+        const matchingImage = fetchedImagesData.find(
+            (img) => img.productName === suggestion.productName
+        );
+
+        return {
+            productName: suggestion.productName,
+            reason: suggestion.reason,
+            imageURL: matchingImage ? matchingImage.imageURL : null
+        };
+    });
+
+    if (!finalData || finalData.length === 0) {
+        throw new ApiError(500, "Something went wrong while compiling the final list.");
+    }
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(200, { finalData }, "Trending items fetched successfully")
+        );
+});
+
 export {
     businessCopilot,
     clearCopilotHistory,
-    priceSuggestion
+    priceSuggestion,
+    trendingItemsSuggestion
 }
