@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { Moon, Sun, TrendingUp } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useTheme } from './ThemeContext';
+import {  Brain} from 'lucide-react';
+
 
 export function AuthLayout({ title, subtitle, children, footer }) {
   const { theme, toggleTheme } = useTheme();
@@ -47,11 +49,10 @@ export function AuthLayout({ title, subtitle, children, footer }) {
                 Built for faster market decisions
               </div>
               <h2 className="text-5xl font-semibold leading-tight text-foreground">
-                Access your command center with a calmer, cleaner workflow.
+                Smarter Retail Decisions, All in One Place.
               </h2>
               <p className="mt-5 max-w-md text-base leading-7 text-muted-foreground">
-                Manage forecasts, signals, and customer momentum from one place with a
-                secure account flow that matches the rest of MarketPulse.
+                Manage stock, suggest trending products, and grow your business with AI-driven retail intelligence.
               </p>
             </motion.div>
           </div>
@@ -62,8 +63,8 @@ export function AuthLayout({ title, subtitle, children, footer }) {
               <p className="mt-2 text-sm text-muted-foreground">Always-on trend visibility</p>
             </div>
             <div className="rounded-3xl border border-border bg-card/85 p-5 shadow-sm backdrop-blur">
-              <p className="text-3xl font-semibold text-foreground">94%</p>
-              <p className="mt-2 text-sm text-muted-foreground">Signal review accuracy benchmark</p>
+              <p className="text-3xl font-semibold text-foreground"><Brain className="h-8 w-8" /></p>
+              <p className="mt-2 text-sm text-muted-foreground">insights about your market using business copilot</p>
             </div>
           </div>
         </section>
