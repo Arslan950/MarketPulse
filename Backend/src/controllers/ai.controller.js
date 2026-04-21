@@ -244,6 +244,8 @@ const priceSuggestion = asyncHandler(async (req, res) => {
     --- INSTRUCTIONS ---
     - Suggest ONE specific selling price in INR only
     - Factor in the business location and market from the business context
+    - Read The product name and Then based upon that create your answer 
+    - If the product user is adding is completely un related do not crash just mention in Reasoning that "Tho it's not realted to your business just still ..." something like that 
     - Profit margin must be realistic for this business type and local market
     - Never suggest a price below or equal to the cost price
     - Do NOT repeat any business info, product name, or input data back
