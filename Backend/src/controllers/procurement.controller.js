@@ -8,7 +8,9 @@ const addItems = asyncHandler(async (req, res) => {
     const { itemName, category, unitsAvailable, supplierName, wholesalePrice } = req.body;
 
     const existingItem = await WholeSaler.findOne({
-        $and: [{ itemName }, { category }]
+        itemName,
+        category,
+        owner: req.user._id
     });
 
     if (existingItem) {
