@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { TrendingUp, Package, Brain, ShoppingCart, PanelLeftClose, PanelLeftOpen , LayoutDashboard} from 'lucide-react';
+import { TrendingUp, Package, Brain, ShoppingCart, PanelLeftClose, PanelLeftOpen , LayoutDashboard, ReceiptText} from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useSidebar } from './SidebarContext';
 import { Avatar, AvatarFallback, AvatarImage } from './Avatar';
@@ -11,6 +11,11 @@ const navItems = [
     label : 'DashBoard',
     path : '/dashboard',
     icon : LayoutDashboard
+  },
+  {
+    label: 'Billing',
+    path: '/billing',
+    icon: ReceiptText,
   },
   {
     label: 'Trend Command',

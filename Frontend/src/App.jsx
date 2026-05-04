@@ -9,6 +9,7 @@ import { DashBoard } from './pages/Dashboard';
 import { StockIntelligence } from './pages/StockIntelligence';
 import { BusinessCopilot } from './pages/BusinessCopilot';
 import { ProcurementHub } from './pages/ProcurementHub';
+import { Billing } from './pages/Billing';
 import { Profile } from './pages/Profile';
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
@@ -46,6 +47,7 @@ function AppLayout() {
           {isLoggedIn ? (
             <>
               <Route path="/dashboard" element = {<DashBoard/>} />
+              <Route path="/billing" element={<Billing />} />
               <Route path="/trend-command" element={<TrendCommand />} />
               <Route path="/stock-intelligence" element={<StockIntelligence />} />
               <Route path="/procurement" element={<ProcurementHub />} />
